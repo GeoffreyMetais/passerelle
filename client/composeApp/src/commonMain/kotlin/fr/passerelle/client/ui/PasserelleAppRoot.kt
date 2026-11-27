@@ -23,6 +23,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.window.core.layout.WindowWidthSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +44,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -81,7 +85,7 @@ sealed interface AppDestination {
     data object Shares : AppDestination
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun PasserelleAppRoot() {
     val systemDark = isSystemInDarkTheme()
@@ -93,6 +97,7 @@ fun PasserelleAppRoot() {
     val platformActions: PlatformActions = koinInject()
     val isAuthenticated by observeAuthStateUseCase().collectAsStateWithLifecycle(initialValue = false)
     val coroutineScope = rememberCoroutineScope()
+    val isRailLayout = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass != WindowWidthSizeClass.COMPACT
 
     PasserelleTheme(darkTheme = useDarkTheme) {
         if (!isAuthenticated) {
@@ -142,18 +147,34 @@ fun PasserelleAppRoot() {
                         selected = isFilesSelected,
                         onClick = { navigateTo(AppDestination.Files) },
                         icon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                        label = { Text(stringResource(Res.string.nav_files), modifier = Modifier.padding(horizontal = Spacing.sm)) },
+                        label = {
+                            Text(
+                                text = stringResource(Res.string.nav_files),
+                                modifier = Modifier.padding(horizontal = Spacing.xs),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
                         modifier = Modifier
                             .padding(horizontal = Spacing.xs)
+                            .then(if (isRailLayout) Modifier.padding(top = Spacing.sm) else Modifier)
                             .pointerHoverIcon(PointerIcon.Hand),
                     )
                     item(
                         selected = !isFilesSelected,
                         onClick = { navigateTo(AppDestination.Shares) },
                         icon = { Icon(Icons.Default.Link, contentDescription = null) },
-                        label = { Text(stringResource(Res.string.nav_shares), modifier = Modifier.padding(horizontal = Spacing.sm)) },
+                        label = {
+                            Text(
+                                text = stringResource(Res.string.nav_shares),
+                                modifier = Modifier.padding(horizontal = Spacing.xs),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
                         modifier = Modifier
                             .padding(horizontal = Spacing.xs)
+                            .then(if (isRailLayout) Modifier.padding(top = Spacing.sm) else Modifier)
                             .pointerHoverIcon(PointerIcon.Hand),
                     )
                 },
