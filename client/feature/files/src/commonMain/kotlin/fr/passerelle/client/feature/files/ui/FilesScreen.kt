@@ -213,7 +213,8 @@ fun FilesRoute(
         onSortSelected = viewModel::onSortSelected,
         onToggleViewMode = viewModel::onToggleViewMode,
         onToggleShowHidden = viewModel::onToggleShowHidden,
-        onRefresh = viewModel::refresh,
+        onRefresh = { viewModel.refresh(fromPullToRefresh = false) },
+        onPullToRefresh = { viewModel.refresh(fromPullToRefresh = true) },
         onItemClick = viewModel::onItemClicked,
         onInspectItem = viewModel::onInspectItem,
         onQuickShare = viewModel::createQuickShareAndTriggerNativeShare,
@@ -245,6 +246,7 @@ fun FilesScreenContent(
     onToggleViewMode: () -> Unit,
     onToggleShowHidden: () -> Unit,
     onRefresh: () -> Unit,
+    onPullToRefresh: () -> Unit,
     onItemClick: (FileItem, Boolean) -> Unit,
     onInspectItem: (FileItem) -> Unit,
     onQuickShare: (FileItem) -> Unit,
@@ -264,7 +266,7 @@ fun FilesScreenContent(
 ) {
     val searchFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    var detailPanelWidth by rememberSaveable { mutableStateOf(380f) }
+    var detailPanelWidth by rememberSaveable { mutableStateOf(570f) }
 
     Scaffold(
         modifier = modifier
@@ -334,8 +336,8 @@ fun FilesScreenContent(
                     }
 
                     PullToRefreshBox(
-                        isRefreshing = uiState.isLoading,
-                        onRefresh = onRefresh,
+                        isRefreshing = uiState.isPullToRefreshVisible,
+                        onRefresh = onPullToRefresh,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     ) {
                         when {
@@ -412,14 +414,15 @@ fun FilesScreenContent(
                 }
 
                 if (isExpanded) {
+                    val effectivePanelWidth = detailPanelWidth.coerceIn(280f, maxPanelWidth)
                     DetailPanelDivider(
                         onDragDelta = { deltaDp ->
-                            detailPanelWidth = (detailPanelWidth - deltaDp).coerceIn(280f, maxPanelWidth)
+                            detailPanelWidth = (effectivePanelWidth - deltaDp).coerceIn(280f, maxPanelWidth)
                         },
                     )
                     Surface(
                         modifier = Modifier
-                            .width(detailPanelWidth.dp)
+                            .width(effectivePanelWidth.dp)
                             .fillMaxHeight(),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         tonalElevation = 1.dp,

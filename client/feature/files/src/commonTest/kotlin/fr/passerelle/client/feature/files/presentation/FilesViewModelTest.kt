@@ -217,4 +217,172 @@ class FilesViewModelTest {
             assertEquals(FilesEvent.ShowMessage(FilesEvent.ShowMessage.MessageType.LINK_COPIED), awaitItem())
         }
     }
+
+    @Test
+    fun `natural load delays pull-to-refresh spinner by 300ms and hides it on completion`() = runTest {
+        val testDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(testDispatcher)
+        val slowRepo = SlowFileRepositoryForVm(delayMs = 500L)
+        val vm = FilesViewModel(
+            browseDirectoryUseCase = BrowseDirectoryUseCase(slowRepo),
+            searchFilesUseCase = SearchFilesUseCase(slowRepo),
+            createShareUseCase = CreateShareUseCase(shareRepo),
+            getSharesUseCase = GetSharesUseCase(shareRepo),
+            getShareQrSvgUseCase = GetShareQrSvgUseCase(shareRepo),
+            fileRepository = slowRepo,
+            platformActions = platform,
+        )
+
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceTimeBy(299L)
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceTimeBy(1L)
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertTrue(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceTimeBy(200L)
+        testScheduler.runCurrent()
+        assertFalse(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+    }
+
+    @Test
+    fun `fast natural load under 300ms never shows pull-to-refresh spinner`() = runTest {
+        val testDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(testDispatcher)
+        val fastRepo = SlowFileRepositoryForVm(delayMs = 150L)
+        val vm = FilesViewModel(
+            browseDirectoryUseCase = BrowseDirectoryUseCase(fastRepo),
+            searchFilesUseCase = SearchFilesUseCase(fastRepo),
+            createShareUseCase = CreateShareUseCase(shareRepo),
+            getSharesUseCase = GetSharesUseCase(shareRepo),
+            getShareQrSvgUseCase = GetShareQrSvgUseCase(shareRepo),
+            fileRepository = fastRepo,
+            platformActions = platform,
+        )
+
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceTimeBy(150L)
+        testScheduler.runCurrent()
+        assertFalse(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+    }
+
+    @Test
+    fun `pull-to-refresh shows spinner immediately without 300ms delay`() = runTest {
+        val testDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(testDispatcher)
+        val slowRepo = SlowFileRepositoryForVm(delayMs = 500L)
+        val vm = FilesViewModel(
+            browseDirectoryUseCase = BrowseDirectoryUseCase(slowRepo),
+            searchFilesUseCase = SearchFilesUseCase(slowRepo),
+            createShareUseCase = CreateShareUseCase(shareRepo),
+            getSharesUseCase = GetSharesUseCase(shareRepo),
+            getShareQrSvgUseCase = GetShareQrSvgUseCase(shareRepo),
+            fileRepository = slowRepo,
+            platformActions = platform,
+        )
+
+        // Finish initial load
+        testScheduler.advanceUntilIdle()
+        assertFalse(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+
+        // Trigger pull-to-refresh
+        vm.refresh(fromPullToRefresh = true)
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertTrue(vm.uiState.value.isPullToRefreshVisible)
+
+        // Finish pull-to-refresh
+        testScheduler.advanceTimeBy(500L)
+        testScheduler.runCurrent()
+        assertFalse(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+    }
+
+    @Test
+    fun `pull-to-refresh during active search shows spinner immediately`() = runTest {
+        val testDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(testDispatcher)
+        val slowRepo = SlowFileRepositoryForVm(delayMs = 500L)
+        val vm = FilesViewModel(
+            browseDirectoryUseCase = BrowseDirectoryUseCase(slowRepo),
+            searchFilesUseCase = SearchFilesUseCase(slowRepo),
+            createShareUseCase = CreateShareUseCase(shareRepo),
+            getSharesUseCase = GetSharesUseCase(shareRepo),
+            getShareQrSvgUseCase = GetShareQrSvgUseCase(shareRepo),
+            fileRepository = slowRepo,
+            platformActions = platform,
+        )
+
+        testScheduler.advanceUntilIdle()
+
+        // Natural search: spinner delayed by 300ms
+        vm.onSearchQueryChanged("plage")
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceTimeBy(300L)
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceUntilIdle()
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+
+        // Pull-to-refresh during search: spinner immediate
+        vm.refresh(fromPullToRefresh = true)
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isLoading)
+        assertTrue(vm.uiState.value.isPullToRefreshVisible)
+
+        testScheduler.advanceUntilIdle()
+        assertFalse(vm.uiState.value.isLoading)
+        assertFalse(vm.uiState.value.isPullToRefreshVisible)
+    }
+}
+
+private class SlowFileRepositoryForVm(
+    private val delayMs: Long,
+) : FileRepository {
+    val file = FileItem("plage.jpg", "Photos/plage.jpg", false, 1024L, SAMPLE_DATE, "image/jpeg", false, 0)
+
+    override suspend fun browse(
+        path: String,
+        sortBy: SortOption,
+        sortOrder: SortDirection,
+        showHidden: Boolean,
+    ): Resource<DirectoryContent> {
+        kotlinx.coroutines.delay(delayMs)
+        return Resource.Success(
+            DirectoryContent(
+                currentPath = path,
+                parentPath = null,
+                breadcrumbs = listOf(Breadcrumb("Racine", "")),
+                entries = listOf(file),
+            )
+        )
+    }
+
+    override suspend fun search(query: String, path: String, showHidden: Boolean): Resource<List<FileItem>> {
+        kotlinx.coroutines.delay(delayMs)
+        return Resource.Success(listOf(file))
+    }
+
+    override suspend fun getThumbnail(path: String): Resource<ByteArray> =
+        Resource.Success(byteArrayOf(7, 8, 9))
+
+    override suspend fun getDirectDownloadUrl(path: String, inline: Boolean): String =
+        "https://s.domaine.fr/api/v1/files/download?path=$path"
 }
