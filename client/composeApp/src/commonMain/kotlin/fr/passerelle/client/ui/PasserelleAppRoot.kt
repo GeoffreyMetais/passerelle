@@ -52,6 +52,7 @@ import fr.passerelle.client.core.designsystem.resources.app_name
 import fr.passerelle.client.core.designsystem.resources.nav_files
 import fr.passerelle.client.core.designsystem.resources.nav_shares
 import fr.passerelle.client.core.designsystem.theme.PasserelleTheme
+import fr.passerelle.client.core.designsystem.theme.Spacing
 import fr.passerelle.client.core.domain.usecase.LogoutUseCase
 import fr.passerelle.client.core.domain.usecase.ObserveAuthStateUseCase
 import fr.passerelle.client.core.platform.PlatformActions
@@ -137,14 +138,14 @@ fun PasserelleAppRoot() {
                         selected = isFilesSelected,
                         onClick = { navigateTo(AppDestination.Files) },
                         icon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                        label = { Text(stringResource(Res.string.nav_files)) },
+                        label = { Text(stringResource(Res.string.nav_files), modifier = Modifier.padding(horizontal = Spacing.sm)) },
                         modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                     )
                     item(
                         selected = !isFilesSelected,
                         onClick = { navigateTo(AppDestination.Shares) },
                         icon = { Icon(Icons.Default.Link, contentDescription = null) },
-                        label = { Text(stringResource(Res.string.nav_shares)) },
+                        label = { Text(stringResource(Res.string.nav_shares), modifier = Modifier.padding(horizontal = Spacing.sm)) },
                         modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                     )
                 },
