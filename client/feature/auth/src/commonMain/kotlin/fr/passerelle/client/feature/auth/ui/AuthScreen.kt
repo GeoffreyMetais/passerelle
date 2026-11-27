@@ -63,6 +63,7 @@ import fr.passerelle.client.core.designsystem.resources.auth_show_password
 import fr.passerelle.client.core.designsystem.resources.auth_subtitle
 import fr.passerelle.client.core.designsystem.resources.auth_title
 import fr.passerelle.client.core.designsystem.resources.auth_username_label
+import fr.passerelle.client.core.designsystem.theme.Layout
 import fr.passerelle.client.core.designsystem.theme.Spacing
 import fr.passerelle.client.feature.auth.presentation.AuthEvent
 import fr.passerelle.client.feature.auth.presentation.AuthUiState
@@ -121,8 +122,8 @@ fun AuthScreenContent(
         ) {
             ElevatedCard(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 440.dp),
+                    .widthIn(max = Layout.maxFormWidth)
+                    .fillMaxWidth(),
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 ),

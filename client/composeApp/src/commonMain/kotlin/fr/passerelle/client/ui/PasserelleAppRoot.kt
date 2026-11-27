@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DarkMode
@@ -28,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -51,6 +54,7 @@ import fr.passerelle.client.core.designsystem.resources.action_toggle_theme
 import fr.passerelle.client.core.designsystem.resources.app_name
 import fr.passerelle.client.core.designsystem.resources.nav_files
 import fr.passerelle.client.core.designsystem.resources.nav_shares
+import fr.passerelle.client.core.designsystem.theme.Layout
 import fr.passerelle.client.core.designsystem.theme.PasserelleTheme
 import fr.passerelle.client.core.designsystem.theme.Spacing
 import fr.passerelle.client.core.domain.usecase.LogoutUseCase
@@ -191,20 +195,27 @@ fun PasserelleAppRoot() {
                             .fillMaxSize()
                             .padding(innerPadding),
                     ) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = AppDestination.Files,
+                        Box(
+                            modifier = Modifier
+                                .widthIn(max = Layout.maxContentWidth)
+                                .fillMaxHeight()
+                                .align(Alignment.Center),
                         ) {
-                            composable<AppDestination.Files> {
-                                val filesViewModel: FilesViewModel = koinViewModel()
-                                FilesRoute(
-                                    viewModel = filesViewModel,
-                                    onOpenExternalUrl = platformActions::openExternalUrl,
-                                )
-                            }
-                            composable<AppDestination.Shares> {
-                                val sharesViewModel: SharesViewModel = koinViewModel()
-                                SharesRoute(viewModel = sharesViewModel)
+                            NavHost(
+                                navController = navController,
+                                startDestination = AppDestination.Files,
+                            ) {
+                                composable<AppDestination.Files> {
+                                    val filesViewModel: FilesViewModel = koinViewModel()
+                                    FilesRoute(
+                                        viewModel = filesViewModel,
+                                        onOpenExternalUrl = platformActions::openExternalUrl,
+                                    )
+                                }
+                                composable<AppDestination.Shares> {
+                                    val sharesViewModel: SharesViewModel = koinViewModel()
+                                    SharesRoute(viewModel = sharesViewModel)
+                                }
                             }
                         }
                     }
