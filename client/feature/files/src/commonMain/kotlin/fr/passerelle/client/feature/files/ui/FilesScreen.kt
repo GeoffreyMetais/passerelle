@@ -266,7 +266,7 @@ fun FilesScreenContent(
 ) {
     val searchFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    var detailPanelWidth by rememberSaveable { mutableStateOf(570f) }
+    var detailPanelWidth by rememberSaveable { mutableStateOf(380f) }
 
     Scaffold(
         modifier = modifier
@@ -311,7 +311,7 @@ fun FilesScreenContent(
                 .padding(innerPadding),
         ) {
             val isExpanded = maxWidth >= 840.dp
-            val maxPanelWidth = maxWidth.value * 0.65f
+            val maxPanelWidth = maxWidth.value * 0.80f
 
             Row(modifier = Modifier.fillMaxSize()) {
                 Column(
