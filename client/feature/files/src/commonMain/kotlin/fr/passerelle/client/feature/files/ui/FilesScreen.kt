@@ -87,6 +87,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -417,7 +418,8 @@ fun FilesScreenContent(
                     val effectivePanelWidth = detailPanelWidth.coerceIn(280f, maxPanelWidth)
                     DetailPanelDivider(
                         onDragDelta = { deltaDp ->
-                            detailPanelWidth = (effectivePanelWidth - deltaDp).coerceIn(280f, maxPanelWidth)
+                            detailPanelWidth = (detailPanelWidth.coerceIn(280f, maxPanelWidth) - deltaDp)
+                                .coerceIn(280f, maxPanelWidth)
                         },
                     )
                     Surface(
@@ -540,10 +542,12 @@ private fun DetailPanelDivider(
     modifier: Modifier = Modifier,
 ) {
     var dragging by remember { mutableStateOf(false) }
+    val currentOnDragDelta by rememberUpdatedState(onDragDelta)
     Box(
         modifier = modifier
             .width(16.dp)
             .fillMaxHeight()
+            .pointerHoverIcon(PointerIcon.Hand)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { dragging = true },
@@ -551,7 +555,7 @@ private fun DetailPanelDivider(
                     onDragCancel = { dragging = false },
                 ) { change, dragAmount ->
                     change.consume()
-                    onDragDelta(dragAmount.x.toDp().value)
+                    currentOnDragDelta(dragAmount.x.toDp().value)
                 }
             },
         contentAlignment = Alignment.Center,
