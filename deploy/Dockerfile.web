@@ -1,0 +1,61 @@
+# syntax=docker/dockerfile:1
+
+FROM eclipse-temurin:21-jdk AS builder
+
+ARG ANDROID_CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+
+ENV ANDROID_HOME="/opt/android-sdk" \
+    ANDROID_SDK_ROOT="/opt/android-sdk" \
+    GRADLE_USER_HOME="/root/.gradle"
+
+# Install minimal Android SDK (cmdline-tools + platforms;android-35 + build-tools;35.0.0)
+# required by KMP Android library/application plugins during Gradle configuration.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl unzip && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir -p "${ANDROID_HOME}/cmdline-tools" && \
+    curl -fsSL "${ANDROID_CMDLINE_TOOLS_URL}" -o /tmp/cmdline-tools.zip && \
+    unzip -q /tmp/cmdline-tools.zip -d "${ANDROID_HOME}/cmdline-tools" && \
+    mv "${ANDROID_HOME}/cmdline-tools/cmdline-tools" "${ANDROID_HOME}/cmdline-tools/latest" && \
+    rm -f /tmp/cmdline-tools.zip && \
+    yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_HOME}" --licenses > /dev/null && \
+    "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_HOME}" \
+        "platform-tools" \
+        "platforms;android-35" \
+        "build-tools;35.0.0"
+
+WORKDIR /workspace/client
+
+# Copy Gradle wrapper and build definitions first for better layer caching
+COPY client/gradlew client/gradlew.bat client/settings.gradle.kts client/build.gradle.kts client/gradle.properties ./
+COPY client/gradle ./gradle
+
+# Ensure wrapper is executable
+RUN chmod +x ./gradlew
+
+# Copy all KMP module sources
+COPY client/core ./core
+COPY client/feature ./feature
+COPY client/composeApp ./composeApp
+
+# Build the Kotlin/Wasm PWA production bundle
+RUN ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon \
+    -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+
+FROM nginx:1.27-alpine AS runtime
+
+# Remove default nginx server config
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+# Copy compiled Kotlin/Wasm PWA artifacts (index.html, sw.js, manifest.webmanifest, icons/, *.wasm, *.js, composeResources/)
+COPY --from=builder /workspace/client/composeApp/build/dist/wasmJs/productionExecutable/ /usr/share/nginx/html/
+
+# Copy Nginx site config and dynamic config.json entrypoint script
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/40-generate-config.sh /docker-entrypoint.d/40-generate-config.sh
+RUN chmod +x /docker-entrypoint.d/40-generate-config.sh
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:80/healthz || exit 1

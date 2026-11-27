@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <meta property="og:title" content="{{ og_title }}">
+  <meta property="og:description" content="{{ og_description }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ og_url }}">
+  <style>
+    :root {
+      --md-sys-color-primary: #2b5ea7;
+      --md-sys-color-on-primary: #ffffff;
+      --md-sys-color-primary-container: #d6e3ff;
+      --md-sys-color-on-primary-container: #001b3d;
+      --md-sys-color-surface: #f9f9ff;
+      --md-sys-color-surface-container: #ededf4;
+      --md-sys-color-on-surface: #191c20;
+      --md-sys-color-on-surface-variant: #44474e;
+      --md-sys-color-outline: #74777f;
+      --md-sys-color-error: #ba1a1a;
+      --md-sys-color-error-container: #ffdad6;
+      --md-sys-color-on-error-container: #410002;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --md-sys-color-primary: #aac7ff;
+        --md-sys-color-on-primary: #002f65;
+        --md-sys-color-primary-container: #00458e;
+        --md-sys-color-on-primary-container: #d6e3ff;
+        --md-sys-color-surface: #111318;
+        --md-sys-color-surface-container: #1d2024;
+        --md-sys-color-on-surface: #e2e2e9;
+        --md-sys-color-on-surface-variant: #c4c6d0;
+        --md-sys-color-outline: #8e9099;
+        --md-sys-color-error: #ffb4ab;
+        --md-sys-color-error-container: #93000a;
+        --md-sys-color-on-error-container: #ffdad6;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--md-sys-color-surface-container);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+    .brand {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--md-sys-color-primary);
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      line-height: 1.3;
+      margin: 0 0 12px 0;
+      word-break: break-word;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+    }
+    .meta {
+      font-size: 0.9rem;
+      color: var(--md-sys-color-on-surface-variant);
+      margin: 0 0 24px 0;
+      line-height: 1.5;
+    }
+    .error-banner {
+      background: var(--md-sys-color-error-container);
+      color: var(--md-sys-color-on-error-container);
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .field {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--md-sys-color-outline);
+      background: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 999px;
+      background: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.92; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">Passerelle</div>
+    {% match state %}
+      {% when PublicViewState::Gone with { heading, message } %}
+        <h1>{{ heading }}</h1>
+        <p class="meta">{{ message }}</p>
+      {% when PublicViewState::Locked with { slug, target_name, is_directory, size_label, expires_label, has_error } %}
+        <h1>{{ target_name }}</h1>
+        <div class="badges">
+          <span class="badge">{{ size_label }}</span>
+          {% if is_directory %}
+            <span class="badge">Archive .zip</span>
+          {% endif %}
+        </div>
+        {% if has_error %}
+          <div class="error-banner">Mot de passe incorrect. Veuillez réessayer.</div>
+        {% endif %}
+        <p class="meta">Ce partage est protégé par mot de passe.{% if let Some(exp) = expires_label %} Valable jusqu'au {{ exp }}.{% endif %}</p>
+        <form method="post" action="/{{ slug }}/unlock">
+          <input class="field" type="password" name="password" placeholder="Mot de passe" required autofocus>
+          <button class="btn" type="submit">Déverrouiller</button>
+        </form>
+      {% when PublicViewState::Ready with { slug, target_name, is_directory, size_label, expires_label } %}
+        <h1>{{ target_name }}{% if is_directory %}.zip{% endif %}</h1>
+        <div class="badges">
+          <span class="badge">{{ size_label }}</span>
+          {% if is_directory %}
+            <span class="badge">Dossier · Archive .zip</span>
+          {% endif %}
+        </div>
+        <p class="meta">
+          Prêt au téléchargement.
+          {% if let Some(exp) = expires_label %}
+            <br>Échéance : {{ exp }}
+          {% endif %}
+        </p>
+        <a class="btn" href="/d/{{ slug }}">Télécharger</a>
+    {% endmatch %}
+  </main>
+</body>
+</html>
