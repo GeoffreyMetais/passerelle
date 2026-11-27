@@ -1,5 +1,6 @@
 package fr.passerelle.client.feature.auth.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -24,9 +26,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,8 +51,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.passerelle.client.core.designsystem.component.PasserelleBrandMark
+import fr.passerelle.client.core.designsystem.component.PasserelleReadOnlyPill
 import fr.passerelle.client.core.designsystem.error.resolveMessage
 import fr.passerelle.client.core.designsystem.resources.Res
+import fr.passerelle.client.core.designsystem.resources.app_readonly_pill
+import fr.passerelle.client.core.designsystem.resources.app_tagline
 import fr.passerelle.client.core.designsystem.resources.auth_connecting
 import fr.passerelle.client.core.designsystem.resources.auth_hide_password
 import fr.passerelle.client.core.designsystem.resources.auth_login_button
@@ -120,13 +124,13 @@ fun AuthScreenContent(
                 .padding(Spacing.md),
             contentAlignment = Alignment.Center,
         ) {
-            ElevatedCard(
+            Surface(
                 modifier = Modifier
                     .widthIn(max = Layout.maxFormWidth)
                     .fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
             ) {
                 Column(
                     modifier = Modifier
@@ -145,11 +149,14 @@ fun AuthScreenContent(
                         },
                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text(
-                            text = stringResource(Res.string.auth_title),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        PasserelleBrandMark(
+                            title = stringResource(Res.string.auth_title),
+                            subtitle = stringResource(Res.string.app_tagline),
+                            iconSize = 42.dp,
+                        )
+                        PasserelleReadOnlyPill(
+                            label = stringResource(Res.string.app_readonly_pill),
                         )
                         Text(
                             text = stringResource(Res.string.auth_subtitle),
@@ -169,6 +176,7 @@ fun AuthScreenContent(
                             },
                             singleLine = true,
                             enabled = !uiState.isLoading,
+                            shape = MaterialTheme.shapes.small,
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Uri,
                                 imeAction = ImeAction.Next,
@@ -186,6 +194,7 @@ fun AuthScreenContent(
                         },
                         singleLine = true,
                         enabled = !uiState.isLoading,
+                        shape = MaterialTheme.shapes.small,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next,
@@ -227,6 +236,7 @@ fun AuthScreenContent(
                         },
                         singleLine = true,
                         enabled = !uiState.isLoading,
+                        shape = MaterialTheme.shapes.small,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done,
@@ -255,6 +265,7 @@ fun AuthScreenContent(
                     Button(
                         onClick = onSubmit,
                         enabled = !uiState.isLoading,
+                        shape = CircleShape,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)

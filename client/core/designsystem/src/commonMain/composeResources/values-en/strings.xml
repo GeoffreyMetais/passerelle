@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Passerelle</string>
+    <string name="app_tagline">Secure transfer</string>
+    <string name="app_badge_readonly">:RO</string>
+    <string name="app_readonly_pill">Instance :RO (Read-only)</string>
     <string name="nav_files">Explorer</string>
     <string name="nav_shares">Shared links</string>
     <string name="action_toggle_theme">Toggle theme</string>
@@ -30,7 +33,11 @@
     <string name="auth_edit_server_url">Edit server URL</string>
 
     <string name="files_search_placeholder">Search files… (Ctrl+K)</string>
+    <string name="files_search_placeholder_short">Search files…</string>
+    <string name="files_search_shortcut">Ctrl+K</string>
     <string name="files_clear_search">Clear search</string>
+    <string name="files_item_count">%1$d items</string>
+    <string name="files_item_count_single">1 item</string>
     <string name="files_sort_name">Name</string>
     <string name="files_sort_size">Size</string>
     <string name="files_sort_date">Date</string>
@@ -63,6 +70,10 @@
     <string name="files_active_shares_badge">%1$d link(s)</string>
 
     <string name="shares_title">Shared links</string>
+    <string name="shares_subtitle">Manage and revoke your secure remote links</string>
+    <string name="shares_active_count">%1$d active</string>
+    <string name="shares_active_count_single">1 active</string>
+    <string name="shares_expires_prefix">Expires %1$s</string>
     <string name="shares_search_placeholder">Filter by slug or path…</string>
     <string name="shares_filter_all">All</string>
     <string name="shares_filter_active">Active</string>

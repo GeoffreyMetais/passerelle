@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Passerelle</string>
+    <string name="app_tagline">Transfert sécurisé</string>
+    <string name="app_badge_readonly">:RO</string>
+    <string name="app_readonly_pill">Instance :RO (Lecture seule)</string>
     <string name="nav_files">Explorateur</string>
     <string name="nav_shares">Liens partagés</string>
     <string name="action_toggle_theme">Changer de thème</string>
@@ -30,7 +33,11 @@
     <string name="auth_edit_server_url">Modifier l’URL du serveur</string>
 
     <string name="files_search_placeholder">Rechercher des fichiers… (Ctrl+K)</string>
+    <string name="files_search_placeholder_short">Rechercher des fichiers…</string>
+    <string name="files_search_shortcut">Ctrl+K</string>
     <string name="files_clear_search">Effacer la recherche</string>
+    <string name="files_item_count">%1$d éléments</string>
+    <string name="files_item_count_single">1 élément</string>
     <string name="files_sort_name">Nom</string>
     <string name="files_sort_size">Taille</string>
     <string name="files_sort_date">Date</string>
@@ -63,6 +70,10 @@
     <string name="files_active_shares_badge">%1$d lien(s)</string>
 
     <string name="shares_title">Liens partagés</string>
+    <string name="shares_subtitle">Gérez et révoquez vos accès distants sécurisés</string>
+    <string name="shares_active_count">%1$d actifs</string>
+    <string name="shares_active_count_single">1 actif</string>
+    <string name="shares_expires_prefix">Expire le %1$s</string>
     <string name="shares_search_placeholder">Filtrer par slug ou chemin…</string>
     <string name="shares_filter_all">Tous</string>
     <string name="shares_filter_active">Actifs</string>
