@@ -89,7 +89,7 @@ class WebServerUrlProvider : ServerUrlProvider {
         return try {
             val response = window.fetch("./config.json").await<Response>()
             if (!response.ok) return null
-            val body = response.text().await<String>()
+            val body = response.text().await<JsString>().toString()
             val parsed = json.decodeFromString<WebConfigJson>(body)
             parsed.apiBaseUrl?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() }
         } catch (_: Throwable) {

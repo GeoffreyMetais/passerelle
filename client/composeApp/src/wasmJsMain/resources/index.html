@@ -7,6 +7,7 @@
     <meta name="description" content="Explorateur de fichiers et création rapide de liens de partage sécurisés." />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F9F9FF" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111318" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Passerelle" />
@@ -82,10 +83,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        #ComposeTarget {
-            width: 100%;
-            height: 100%;
-        }
     </style>
 </head>
 <body>
@@ -96,7 +93,6 @@
     <div class="splash-title">Passerelle</div>
     <div class="splash-spinner" role="progressbar"></div>
 </div>
-<canvas id="ComposeTarget"></canvas>
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
