@@ -1,4 +1,4 @@
-const CACHE_NAME = 'passerelle-pwa-v1';
+const CACHE_NAME = 'passerelle-pwa-v2';
 const APP_SHELL_PATHS = [
   './',
   'index.html',
@@ -50,6 +50,24 @@ function shouldBypassCache(request) {
 
 self.addEventListener('fetch', (event) => {
   if (shouldBypassCache(event.request)) {
+    return;
+  }
+
+  // Network-first for HTML navigations so deployments immediately pick up updated shells
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 
