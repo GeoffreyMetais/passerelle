@@ -267,7 +267,7 @@ fun FilesScreenContent(
 ) {
     val searchFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    var detailPanelWidth by rememberSaveable { mutableStateOf(380f) }
+    var customPanelWidth by rememberSaveable { mutableStateOf<Float?>(null) }
 
     Scaffold(
         modifier = modifier
@@ -313,6 +313,7 @@ fun FilesScreenContent(
         ) {
             val isExpanded = maxWidth >= 840.dp
             val maxPanelWidth = maxWidth.value * 0.80f
+            val defaultPanelWidth = (maxWidth.value * 0.35f).coerceIn(380f, 570f)
 
             Row(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -415,11 +416,11 @@ fun FilesScreenContent(
                 }
 
                 if (isExpanded) {
-                    val effectivePanelWidth = detailPanelWidth.coerceIn(280f, maxPanelWidth)
+                    val effectivePanelWidth = (customPanelWidth ?: defaultPanelWidth).coerceIn(280f, maxPanelWidth)
                     DetailPanelDivider(
                         onDragDelta = { deltaDp ->
-                            detailPanelWidth = (detailPanelWidth.coerceIn(280f, maxPanelWidth) - deltaDp)
-                                .coerceIn(280f, maxPanelWidth)
+                            val current = (customPanelWidth ?: defaultPanelWidth).coerceIn(280f, maxPanelWidth)
+                            customPanelWidth = (current - deltaDp).coerceIn(280f, maxPanelWidth)
                         },
                     )
                     Surface(
