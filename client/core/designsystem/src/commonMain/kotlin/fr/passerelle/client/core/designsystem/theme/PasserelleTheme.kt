@@ -25,7 +25,7 @@ object Spacing {
 }
 
 object Layout {
-    val maxContentWidth = 1200.dp
+    val maxContentWidth = 1400.dp
     val maxFormWidth = 440.dp
 }
 
