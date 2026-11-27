@@ -1,84 +1,96 @@
-# AGENTS.md — Directives d'Ingénierie du Projet Passerelle
+# AGENTS.md — Passerelle Engineering Guidelines
 
-Ce document définit les règles d'architecture, de développement et de qualité obligatoires pour tous les agents et développeurs intervenant sur **Passerelle** (monorepo Backend Rust + Client KMP Android & PWA Web + Docker Compose).
-
----
-
-## 1. Clean Architecture Stricte (Obligatoire)
-
-Le projet DOIT respecter rigoureusement les principes de la **Clean Architecture** avec une règle de dépendance unidirectionnelle stricte orientée vers l'intérieur (`Domain` ← `Application / UseCases` ← `Infrastructure / Data & Presentation`).
-
-### 1.1. Backend Rust (`backend/`)
-- **`domain/` (Pur Rust, zéro dépendance I/O, HTTP ou SQL)** :
-  - Contient les entités métier (`ShareLink`, `FileEntry`, `AdminSession`), les Value Objects auto-validants (`Slug`, `RelativeFilePath`), les erreurs métier typées (`thiserror`) et les **traits (ports)** abstraits (`ShareRepository`, `SessionRepository`, `FileSystemPort`, `PasswordHasher`, `TokenService`).
-  - Aucune référence à `axum`, `sqlx` ou au système de fichiers réel n'est autorisée dans `domain/`.
-- **`application/` (Cas d'usage / Orchestration métier)** :
-  - Implémente les Use Cases (`AuthUseCases`, `FileUseCases`, `ShareUseCases`) en ne dépendant **que** de `domain/`.
-  - Testable à 100 % en mémoire via des implémentations factices (Fakes) des ports du domaine.
-- **`infrastructure/` (Adaptateurs techniques)** :
-  - `persistence/` : implémentations SQLite (`sqlx`) des repositories du domaine.
-  - `fs/` : accès lecture seule sécurisé (`PathGuard` avec `canonicalize` + `starts_with`), streaming ZIP64 sans stockage temporaire (`async_zip` en mode `Stored`), génération et cache disque des miniatures WebP.
-  - `security/` : `argon2` et `jsonwebtoken`.
-  - `http/` : handlers et routeurs `axum`, CORS strict, rate-limiting, rendu HTML/CSS Material 3 léger (`askama`) pour la page publique `/{slug}` et streaming `Range` / ZIP64 sur `/d/{slug}`.
-
-### 1.2. Client Kotlin Multiplatform (`client/` — Android & PWA Web `wasmJs`)
-- **`:core:domain` (Pur Kotlin `commonMain`, aucune dépendance Android/Web/Ktor)** :
-  - Modèles métier immuables, hiérarchie d'erreurs typées `AppError`, wrapper `Resource<T>`, interfaces de repositories et Use Cases (`operator fun invoke(...)`).
-- **`:core:data` (Implémentation de la couche Data)** :
-  - DTOs `@Serializable` marqués `internal`, client HTTP `Ktor` avec authentification Bearer/Refresh, mappers explicites `DTO ↔ Domain`, implémentations `internal` des interfaces de `:core:domain`. Ne jamais exposer un DTO hors de `:core:data`.
-- **`:core:platform` (Abstractions multiplateformes `expect` / `actual`)** :
-  - Stockage de jetons, lecture de `/config.json` sur Web vs URL configurable sur Android, presse-papier, Share Sheet natif Android (`Intent.ACTION_SEND`).
-- **`:core:designsystem` (Material Design 3 Adaptive)** :
-  - Thème `PasserelleTheme` (Dynamic Color Android 12+ & palette tonale M3 Web clair/sombre), tokens d'espacement 8dp, typographie et composants réutilisables découplés du métier.
-- **`:feature:auth`, `:feature:files`, `:feature:shares` (Couche Presentation MVI / UDF)** :
-  - Flux de données unidirectionnel strict : `StateFlow<UiState>` (`data class` immuable) + `SharedFlow<UiEvent>` (`replay = 0`) pour les effets ponctuels + `ViewModel` JetBrains.
-  - Les écrans Composables reçoivent des données primitives/modèles et des callbacks ; aucun Composable enfant ne dépend directement d'un `ViewModel`.
-- **`:composeApp` (Point d'entrée Android & Progressive Web App `wasmJs`)** :
-  - Assemblage DI `Koin`, navigation racine adaptative (`NavigationSuiteScaffold`), configuration Edge-to-Edge Android et ressources **PWA** (`manifest.webmanifest`, `sw.js`, icônes installables, splash screen M3).
+This document defines the mandatory architecture, development, and quality rules for all agents and developers working on **Passerelle** (Rust Backend + Kotlin Multiplatform Android & Web PWA Client + Docker Compose monorepo).
 
 ---
 
-## 2. Développement Piloté par les Tests — Mode TDD Obligatoire
+## 1. Core Engineering Principles
 
-Pour **toute nouvelle fonctionnalité, évolution ou correction de bug**, il est **obligatoire** de procéder en mode **TDD (Test-Driven Development)** selon le cycle strict **Red → Green → Refactor** :
-
-1. **RED (Écrire le test d'abord)** :
-   - Pour une **évolution / fonctionnalité** : écrire d'abord le(s) test(s) unitaire(s) ou d'intégration exprimant le comportement attendu et vérifier qu'ils échouent.
-   - Pour une **correction de bug** : écrire impérativement un test de non-régression qui reproduit exactement le bug et échoue avant toute modification du code de production.
-2. **GREEN (Implémentation minimale)** :
-   - Écrire uniquement le code de production nécessaire pour faire passer les tests au vert sans casser la suite existante.
-3. **REFACTOR (Amélioration structurelle)** :
-   - Nettoyer la duplication, renforcer le typage, vérifier le respect de la Clean Architecture et passer les linters (`cargo clippy -- -D warnings`, `cargo fmt --check`, `./gradlew check`) en maintenant 100 % des tests au vert.
-
-### Règles de test spécifiques
-- **Pas de mocks fragiles côté KMP** : privilégier des **Fakes** implémentant les interfaces de `:core:domain` dans `commonTest` avec `kotlinx-coroutines-test` (`runTest`).
-- **Tests Backend Rust** : tester unitairement les invariants de `domain/` et les Use Cases de `application/`, et couvrir les endpoints `axum` (sécurité anti path-traversal, streaming ZIP64, expiration, quotas, mots de passe) par des tests d'intégration dans `backend/tests/`.
+1. **English Only**:
+   - Use English only for all code comments and documentation.
+2. **Think Before Coding**:
+   - State assumptions explicitly before implementing. If requirements are unclear or ambiguous, stop and ask.
+3. **Simplicity First**:
+   - Write the minimum code that solves the problem. Avoid speculative abstractions or unnecessary complexity.
+4. **Surgical Changes**:
+   - Every changed line must trace directly to the user's request. Do not touch unrelated code.
+5. **Goal-Driven Execution**:
+   - Turn every task into a concrete, runnable check (test, build, linter) and loop until it passes.
 
 ---
 
-## 3. Exigences Produit & Garde-fous Critiques
+## 2. Strict Clean Architecture & Single Responsibility (Mandatory)
 
-1. **Progressive Web App (PWA)** :
-   - La cible Web `wasmJs` doit toujours rester une **PWA installable** valide (`manifest.webmanifest` complet, icônes `192x192`, `512x512` et `maskable`, Service Worker `sw.js` mettant en cache l'App Shell Wasm/JS tout en excluant strictement `/config.json` et `/api/*`).
-2. **Sécurité Lecture Seule (`:ro`)** :
-   - Le backend ne modifie, ne renomme ni ne supprime **jamais** aucun fichier dans `/data`. Tout chemin fourni par un client doit être validé canoniquement sous la racine `/data`.
-3. **Zéro `unwrap()` / `expect()` en production Rust** :
-   - Propager proprement les erreurs typées jusqu'à la couche HTTP qui les traduit en réponses JSON normalisées (sans fuite de chemins internes serveur).
-4. **Conformité Material 3 & Accessibilité** :
-   - Aucune couleur hexadécimale codée en dur dans les écrans Compose (utiliser `MaterialTheme.colorScheme`).
-   - Support complet des écrans compacts (mobile Android) et étendus (PWA Desktop/Tablette : rail latéral, panneau maître-détail, focus clavier et curseurs de survol).
+The project MUST strictly follow **Clean Architecture** principles with a unidirectional dependency rule pointing inward (`Domain` ← `Application / UseCases` ← `Infrastructure / Data & Presentation`) and a strong emphasis on the **Single Responsibility Principle (SRP)**—every module, class, function, and handler should have one clear, well-scoped responsibility.
+
+### 2.1. Rust Backend (`backend/`)
+- **`domain/` (Pure Rust, zero I/O, HTTP, or SQL dependencies)**:
+  - Contains domain entities (`ShareLink`, `FileEntry`, `AdminSession`), self-validating Value Objects (`Slug`, `RelativeFilePath`), typed domain errors (`thiserror`), and abstract **traits (ports)** (`ShareRepository`, `SessionRepository`, `FileSystemPort`, `PasswordHasher`, `TokenService`).
+  - No references to `axum`, `sqlx`, or the real filesystem are allowed in `domain/`.
+- **`application/` (Use Cases / Business Orchestration)**:
+  - Implements Use Cases (`AuthUseCases`, `FileUseCases`, `ShareUseCases`) depending **only** on `domain/`.
+  - 100% testable in memory using fake implementations of domain ports.
+- **`infrastructure/` (Technical Adapters)**:
+  - `persistence/`: SQLite (`sqlx`) implementations of domain repositories.
+  - `fs/`: read-only secured access (`PathGuard` with `canonicalize` + `starts_with`), zero-temp-storage ZIP64 streaming (`async_zip` in `Stored` mode), and WebP thumbnail generation/disk caching.
+  - `security/`: `argon2` and `jsonwebtoken`.
+  - `http/`: `axum` handlers and routers, strict CORS, rate-limiting, lightweight Material 3 HTML/CSS rendering (`askama`) for the public `/{slug}` page, and `Range` / ZIP64 streaming on `/d/{slug}`.
+
+### 2.2. Kotlin Multiplatform Client (`client/` — Android & Web PWA `wasmJs`)
+- **`:core:domain` (Pure Kotlin `commonMain`, no Android/Web/Ktor dependencies)**:
+  - Immutable domain models, typed `AppError` hierarchy, `Resource<T>` wrapper, repository interfaces, and focused single-responsibility Use Cases (`operator fun invoke(...)`).
+- **`:core:data` (Data Layer Implementation)**:
+  - `internal` `@Serializable` DTOs, `Ktor` HTTP client with Bearer/Refresh authentication, explicit `DTO ↔ Domain` mappers, and `internal` implementations of `:core:domain` interfaces. Never expose a DTO outside `:core:data`.
+- **`:core:platform` (Multiplatform `expect` / `actual` Abstractions)**:
+  - Token storage, `/config.json` reading on Web vs. configurable URL on Android, clipboard, and native Android Share Sheet (`Intent.ACTION_SEND`).
+- **`:core:designsystem` (Material Design 3 Adaptive)**:
+  - `PasserelleTheme` (Android 12+ Dynamic Color & Web M3 light/dark tonal palette), 8dp spacing tokens, typography, and reusable domain-agnostic components.
+- **`:feature:auth`, `:feature:files`, `:feature:shares` (MVI / UDF Presentation Layer)**:
+  - Strict unidirectional data flow: `StateFlow<UiState>` (immutable `data class`) + `SharedFlow<UiEvent>` (`replay = 0`) for one-off effects + JetBrains `ViewModel`.
+  - Composable screens receive primitive/model data and callbacks; no child Composable depends directly on a `ViewModel`.
+- **`:composeApp` (Android & Progressive Web App `wasmJs` Entry Point)**:
+  - `Koin` DI wiring, adaptive root navigation (`NavigationSuiteScaffold`), Android Edge-to-Edge setup, and **PWA** resources (`manifest.webmanifest`, `sw.js`, installable icons, M3 splash screen).
 
 ---
 
-## 4. Skills de Référence à Consulter
+## 3. Testing Strategy (TDD & Meaningful Tests)
 
-Avant d'intervenir sur une brique technique, consulter via `lookup_skill` les skills dédiés installés dans l'environnement :
-- **Backend Rust** : `rust-architect`
-- **Architecture & Modules KMP** : `kmp-compose-multiplatform`, `kotlin-project-modularization`, `kotlin-navigation-compose-multiplatform`, `kotlin-ui-adaptive-resources`
-- **UI Compose & Material 3 Adaptive** : `material-3`, `adaptive`, `compose-component-design`, `compose-state-and-effects`, `compose-focus-navigation`, `edge-to-edge`, `jetpack-compose-performance`
+- **Minimum tests, focus on a few meaningful tests**:
+  - Avoid redundant or trivial tests. Write concise, high-value tests that verify core invariants, security boundaries, and critical behaviors.
+- **TDD Cycle (Red → Green → Refactor)**:
+  1. **RED**: Write a failing test expressing the expected behavior (or reproducing a bug before fixing it).
+  2. **GREEN**: Write the minimum production code needed to make the test pass.
+  3. **REFACTOR**: Clean up duplication, enforce SRP and Clean Architecture boundaries, and run linters/checks (`cargo clippy -- -D warnings`, `cargo fmt --check`, `./gradlew check`) while keeping all tests green.
+
+### Specific Test Rules
+- **No fragile mocks in KMP**: Prefer **Fakes** implementing `:core:domain` interfaces in `commonTest` with `kotlinx-coroutines-test` (`runTest`).
+- **Rust Backend Tests**: Unit test `domain/` invariants and `application/` Use Cases, and cover `axum` endpoints (anti-path-traversal security, ZIP64 streaming, expiration, quotas, passwords) with integration tests in `backend/tests/`.
 
 ---
 
-## 5. Contrat d'API Partagé
+## 4. Product Requirements & Critical Guardrails
 
-Toute modification d'endpoint ou de payload JSON entre `backend/` et `client/` doit maintenir à jour et respecter [docs/API_CONTRACT.md](file:///home/antigravity/GeoffreyMetais/passerelle/docs/API_CONTRACT.md).
+1. **Progressive Web App (PWA)**:
+   - The `wasmJs` web target must always remain a valid installable **PWA** (complete `manifest.webmanifest`, `192x192`, `512x512`, and `maskable` icons, Service Worker `sw.js` caching the Wasm/JS App Shell while strictly excluding `/config.json` and `/api/*`).
+2. **Read-Only Security (`:ro`)**:
+   - The backend must **never** modify, rename, or delete any file in `/data`. Every client-provided path must be canonically validated under the `/data` root.
+3. **Zero `unwrap()` / `expect()` in Production Rust**:
+   - Propagate typed errors cleanly to the HTTP layer, which translates them into normalized JSON responses (without leaking internal server paths).
+4. **Material 3 Compliance & Accessibility**:
+   - No hardcoded hex colors in Compose screens (use `MaterialTheme.colorScheme`).
+   - Full support for compact screens (Android mobile) and expanded screens (Desktop/Tablet PWA: navigation rail, master-detail pane, keyboard focus, and hover cursors).
+
+---
+
+## 5. Reference Skills
+
+Before working on a technical area, consult the dedicated skills installed in the environment via `lookup_skill`:
+- **Rust Backend**: `rust-architect`
+- **KMP Architecture & Modules**: `kmp-compose-multiplatform`, `kotlin-project-modularization`, `kotlin-navigation-compose-multiplatform`, `kotlin-ui-adaptive-resources`
+- **Compose UI & Material 3 Adaptive**: `material-3`, `adaptive`, `compose-component-design`, `compose-state-and-effects`, `compose-focus-navigation`, `edge-to-edge`, `jetpack-compose-performance`
+
+---
+
+## 6. Shared API Contract
+
+Any endpoint or JSON payload change between `backend/` and `client/` must update and adhere to [docs/API_CONTRACT.md](file:///home/antigravity/GeoffreyMetais/passerelle/docs/API_CONTRACT.md).
