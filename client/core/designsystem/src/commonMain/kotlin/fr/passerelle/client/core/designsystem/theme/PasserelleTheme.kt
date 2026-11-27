@@ -24,6 +24,11 @@ object Spacing {
     val xxl = 48.dp
 }
 
+object Layout {
+    val maxContentWidth = 1400.dp
+    val maxFormWidth = 440.dp
+}
+
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF1A5FB4),
     onPrimary = Color(0xFFFFFFFF),

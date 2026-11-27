@@ -3,6 +3,7 @@ package fr.passerelle.client.feature.files.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,11 +80,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -100,6 +105,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
@@ -258,6 +264,7 @@ fun FilesScreenContent(
 ) {
     val searchFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    var detailPanelWidth by rememberSaveable { mutableStateOf(380f) }
 
     Scaffold(
         modifier = modifier
@@ -302,6 +309,7 @@ fun FilesScreenContent(
                 .padding(innerPadding),
         ) {
             val isExpanded = maxWidth >= 840.dp
+            val maxPanelWidth = maxWidth.value * 0.65f
 
             Row(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -325,7 +333,11 @@ fun FilesScreenContent(
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
 
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = onRefresh,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    ) {
                         when {
                             uiState.error != null && uiState.entries.isEmpty() -> {
                                 Column(
@@ -400,9 +412,14 @@ fun FilesScreenContent(
                 }
 
                 if (isExpanded) {
+                    DetailPanelDivider(
+                        onDragDelta = { deltaDp ->
+                            detailPanelWidth = (detailPanelWidth - deltaDp).coerceIn(280f, maxPanelWidth)
+                        },
+                    )
                     Surface(
                         modifier = Modifier
-                            .width(380.dp)
+                            .width(detailPanelWidth.dp)
                             .fillMaxHeight(),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         tonalElevation = 1.dp,
@@ -510,6 +527,43 @@ fun FilesScreenContent(
                     Text(stringResource(Res.string.action_close))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun DetailPanelDivider(
+    onDragDelta: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var dragging by remember { mutableStateOf(false) }
+    Box(
+        modifier = modifier
+            .width(16.dp)
+            .fillMaxHeight()
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { dragging = true },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                ) { change, dragAmount ->
+                    change.consume()
+                    onDragDelta(dragAmount.x.toDp().value)
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(if (dragging) 4.dp else 2.dp)
+                .fillMaxHeight()
+                .background(
+                    color = if (dragging) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+                ),
         )
     }
 }

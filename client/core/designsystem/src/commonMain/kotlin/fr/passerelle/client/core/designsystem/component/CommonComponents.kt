@@ -68,7 +68,6 @@ data class SvgQrData(
     val width: Float,
     val height: Float,
     val rects: List<QrRect>,
-    val pathCommands: List<String>,
 )
 
 data class QrRect(
@@ -82,6 +81,8 @@ private val VIEWBOX_REGEX = Regex("""viewBox\s*=\s*"([^"]+)"""")
 private val RECT_TAG_REGEX = Regex("""<rect\b([^>]*)/?>""")
 private val PATH_D_REGEX = Regex("""<path\b[^>]*\bd\s*=\s*"([^"]+)"""")
 private val ATTR_REGEX = Regex("""(\w+)\s*=\s*"([^"]+)"""")
+
+private val PATH_SUBPATH_RECT_REGEX = Regex("""(-?[\d.]+)[\s,]+(-?[\d.]+)h(-?[\d.]+)v(-?[\d.]+)""")
 
 fun parseQrSvg(svg: String): SvgQrData? {
     val viewBox = VIEWBOX_REGEX.find(svg)?.groupValues?.get(1)
@@ -106,14 +107,31 @@ fun parseQrSvg(svg: String): SvgQrData? {
         QrRect(x = x, y = y, width = w, height = h)
     }.toList()
 
-    val paths = PATH_D_REGEX.findAll(svg).map { it.groupValues[1] }.toList()
-    if (rects.isEmpty() && paths.isEmpty()) return null
-    return SvgQrData(width = width, height = height, rects = rects, pathCommands = paths)
+    val pathRects = PATH_D_REGEX.findAll(svg).flatMap { match ->
+        parseQrPathRects(match.groupValues[1], width, height)
+    }.toList()
+    val allRects = rects + pathRects
+    if (allRects.isEmpty()) return null
+    return SvgQrData(width = width, height = height, rects = allRects)
 }
 
+fun parseQrPathRects(d: String, canvasWidth: Float, canvasHeight: Float): List<QrRect> =
+    d.split('M', 'm')
+        .filter { it.isNotBlank() }
+        .mapNotNull { subpath ->
+            val match = PATH_SUBPATH_RECT_REGEX.find(subpath) ?: return@mapNotNull null
+            val x = match.groupValues[1].toFloatOrNull() ?: return@mapNotNull null
+            val y = match.groupValues[2].toFloatOrNull() ?: return@mapNotNull null
+            val w = kotlin.math.abs(match.groupValues[3].toFloatOrNull() ?: return@mapNotNull null)
+            val h = kotlin.math.abs(match.groupValues[4].toFloatOrNull() ?: return@mapNotNull null)
+            if (w <= 0f || h <= 0f) return@mapNotNull null
+            if (w >= canvasWidth * 0.9f && h >= canvasHeight * 0.9f) return@mapNotNull null
+            QrRect(x = x, y = y, width = w, height = h)
+        }
+
 /**
- * Multiplatform QR code renderer supporting SVG `<rect>` modules (as emitted by Rust `qrcode` crate)
- * and simple `M x y h w v h h -w z` / `M x y L ...` path squares.
+ * Multiplatform QR code renderer. Supports SVG `<rect>` modules and the `<path>` output of the
+ * Rust `qrcode` crate (`M x y h w v h H x V y` subpaths at any module scale).
  */
 @Composable
 fun SvgQrCodeView(
@@ -147,48 +165,12 @@ fun SvgQrCodeView(
                             size = Size(r.width * scaleX, r.height * scaleY),
                         )
                     }
-                    if (parsed.rects.isEmpty()) {
-                        parsed.pathCommands.forEach { d ->
-                            drawSvgSquareSubpaths(
-                                d = d,
-                                scaleX = scaleX,
-                                scaleY = scaleY,
-                                color = Color.Black,
-                            )
-                        }
-                    }
                 }
             } else {
                 Text(
                     text = "QR",
                     style = MaterialTheme.typography.titleLarge,
                     color = moduleColor,
-                )
-            }
-        }
-    }
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSvgSquareSubpaths(
-    d: String,
-    scaleX: Float,
-    scaleY: Float,
-    color: Color,
-) {
-    val subpaths = d.split('M', 'm').filter { it.isNotBlank() }
-    val numRegex = Regex("""-?\d+(?:\.\d+)?""")
-    for (sub in subpaths) {
-        val nums = numRegex.findAll(sub).mapNotNull { it.value.toFloatOrNull() }.toList()
-        if (nums.size >= 4) {
-            val x = nums[0]
-            val y = nums[1]
-            val w = kotlin.math.abs(nums[2])
-            val h = kotlin.math.abs(nums[3])
-            if (w > 0f && h > 0f && w <= 4f && h <= 4f) {
-                drawRect(
-                    color = color,
-                    topLeft = Offset(x * scaleX, y * scaleY),
-                    size = Size(w * scaleX, h * scaleY),
                 )
             }
         }

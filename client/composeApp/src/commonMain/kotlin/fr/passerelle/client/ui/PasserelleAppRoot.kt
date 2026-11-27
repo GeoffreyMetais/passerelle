@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DarkMode
@@ -21,6 +23,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.window.core.layout.WindowWidthSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -38,6 +44,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -51,7 +58,9 @@ import fr.passerelle.client.core.designsystem.resources.action_toggle_theme
 import fr.passerelle.client.core.designsystem.resources.app_name
 import fr.passerelle.client.core.designsystem.resources.nav_files
 import fr.passerelle.client.core.designsystem.resources.nav_shares
+import fr.passerelle.client.core.designsystem.theme.Layout
 import fr.passerelle.client.core.designsystem.theme.PasserelleTheme
+import fr.passerelle.client.core.designsystem.theme.Spacing
 import fr.passerelle.client.core.domain.usecase.LogoutUseCase
 import fr.passerelle.client.core.domain.usecase.ObserveAuthStateUseCase
 import fr.passerelle.client.core.platform.PlatformActions
@@ -76,7 +85,7 @@ sealed interface AppDestination {
     data object Shares : AppDestination
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun PasserelleAppRoot() {
     val systemDark = isSystemInDarkTheme()
@@ -88,6 +97,7 @@ fun PasserelleAppRoot() {
     val platformActions: PlatformActions = koinInject()
     val isAuthenticated by observeAuthStateUseCase().collectAsStateWithLifecycle(initialValue = false)
     val coroutineScope = rememberCoroutineScope()
+    val isRailLayout = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass != WindowWidthSizeClass.COMPACT
 
     PasserelleTheme(darkTheme = useDarkTheme) {
         if (!isAuthenticated) {
@@ -137,15 +147,35 @@ fun PasserelleAppRoot() {
                         selected = isFilesSelected,
                         onClick = { navigateTo(AppDestination.Files) },
                         icon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                        label = { Text(stringResource(Res.string.nav_files)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
+                        label = {
+                            Text(
+                                text = stringResource(Res.string.nav_files),
+                                modifier = Modifier.padding(horizontal = Spacing.xs),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = Spacing.xs)
+                            .then(if (isRailLayout) Modifier.padding(top = Spacing.sm) else Modifier)
+                            .pointerHoverIcon(PointerIcon.Hand),
                     )
                     item(
                         selected = !isFilesSelected,
                         onClick = { navigateTo(AppDestination.Shares) },
                         icon = { Icon(Icons.Default.Link, contentDescription = null) },
-                        label = { Text(stringResource(Res.string.nav_shares)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
+                        label = {
+                            Text(
+                                text = stringResource(Res.string.nav_shares),
+                                modifier = Modifier.padding(horizontal = Spacing.xs),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = Spacing.xs)
+                            .then(if (isRailLayout) Modifier.padding(top = Spacing.sm) else Modifier)
+                            .pointerHoverIcon(PointerIcon.Hand),
                     )
                 },
             ) {
@@ -186,20 +216,27 @@ fun PasserelleAppRoot() {
                             .fillMaxSize()
                             .padding(innerPadding),
                     ) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = AppDestination.Files,
+                        Box(
+                            modifier = Modifier
+                                .widthIn(max = Layout.maxContentWidth)
+                                .fillMaxHeight()
+                                .align(Alignment.Center),
                         ) {
-                            composable<AppDestination.Files> {
-                                val filesViewModel: FilesViewModel = koinViewModel()
-                                FilesRoute(
-                                    viewModel = filesViewModel,
-                                    onOpenExternalUrl = platformActions::openExternalUrl,
-                                )
-                            }
-                            composable<AppDestination.Shares> {
-                                val sharesViewModel: SharesViewModel = koinViewModel()
-                                SharesRoute(viewModel = sharesViewModel)
+                            NavHost(
+                                navController = navController,
+                                startDestination = AppDestination.Files,
+                            ) {
+                                composable<AppDestination.Files> {
+                                    val filesViewModel: FilesViewModel = koinViewModel()
+                                    FilesRoute(
+                                        viewModel = filesViewModel,
+                                        onOpenExternalUrl = platformActions::openExternalUrl,
+                                    )
+                                }
+                                composable<AppDestination.Shares> {
+                                    val sharesViewModel: SharesViewModel = koinViewModel()
+                                    SharesRoute(viewModel = sharesViewModel)
+                                }
                             }
                         }
                     }
