@@ -49,14 +49,19 @@ class FilesViewModel(
     private var browseJob: Job? = null
     private var searchJob: Job? = null
     private var selectedSharesJob: Job? = null
+    private var refreshSpinnerDelayJob: Job? = null
 
     init {
         loadDirectory("")
     }
 
-    fun loadDirectory(path: String = _uiState.value.currentPath) {
+    fun loadDirectory(
+        path: String = _uiState.value.currentPath,
+        immediateRefreshSpinner: Boolean = false,
+    ) {
         browseJob?.cancel()
         searchJob?.cancel()
+        scheduleRefreshSpinner(immediate = immediateRefreshSpinner)
         browseJob = viewModelScope.launch {
             val current = _uiState.value
             _uiState.update {
@@ -65,6 +70,7 @@ class FilesViewModel(
                     isSearchActive = false,
                     searchQuery = "",
                     isLoading = true,
+                    isPullToRefreshVisible = immediateRefreshSpinner,
                     error = null,
                 )
             }
@@ -74,30 +80,37 @@ class FilesViewModel(
                 sortOrder = current.sortDirection,
                 showHidden = current.showHidden,
             ).onSuccess { content ->
+                refreshSpinnerDelayJob?.cancel()
                 _uiState.update {
                     it.copy(
                         currentPath = content.currentPath,
                         breadcrumbs = content.breadcrumbs,
                         entries = content.entries,
                         isLoading = false,
+                        isPullToRefreshVisible = false,
                         error = null,
                     )
                 }
                 prefetchThumbnails(content.entries)
             }.onError { err ->
+                refreshSpinnerDelayJob?.cancel()
                 _uiState.update {
-                    it.copy(isLoading = false, error = err.toFilesUiError())
+                    it.copy(
+                        isLoading = false,
+                        isPullToRefreshVisible = false,
+                        error = err.toFilesUiError(),
+                    )
                 }
             }
         }
     }
 
-    fun refresh() {
+    fun refresh(fromPullToRefresh: Boolean = false) {
         val state = _uiState.value
         if (state.isSearchActive && state.searchQuery.isNotBlank()) {
-            performSearch(state.searchQuery)
+            performSearch(state.searchQuery, immediateRefreshSpinner = fromPullToRefresh)
         } else {
-            loadDirectory(state.currentPath)
+            loadDirectory(state.currentPath, immediateRefreshSpinner = fromPullToRefresh)
         }
     }
 
@@ -113,28 +126,63 @@ class FilesViewModel(
         performSearch(query)
     }
 
-    private fun performSearch(query: String) {
+    private fun performSearch(
+        query: String,
+        immediateRefreshSpinner: Boolean = false,
+    ) {
         searchJob?.cancel()
+        scheduleRefreshSpinner(immediate = immediateRefreshSpinner)
         searchJob = viewModelScope.launch {
             val current = _uiState.value
             _uiState.update {
-                it.copy(isSearchActive = true, isLoading = true, error = null)
+                it.copy(
+                    isSearchActive = true,
+                    isLoading = true,
+                    isPullToRefreshVisible = immediateRefreshSpinner,
+                    error = null,
+                )
             }
             searchFilesUseCase(
                 query = query,
                 path = current.currentPath,
                 showHidden = current.showHidden,
             ).onSuccess { results ->
+                refreshSpinnerDelayJob?.cancel()
                 _uiState.update {
-                    it.copy(entries = results, isLoading = false, error = null)
+                    it.copy(
+                        entries = results,
+                        isLoading = false,
+                        isPullToRefreshVisible = false,
+                        error = null,
+                    )
                 }
                 prefetchThumbnails(results)
             }.onError { err ->
+                refreshSpinnerDelayJob?.cancel()
                 _uiState.update {
-                    it.copy(isLoading = false, error = err.toFilesUiError())
+                    it.copy(
+                        isLoading = false,
+                        isPullToRefreshVisible = false,
+                        error = err.toFilesUiError(),
+                    )
                 }
             }
         }
+    }
+
+    private fun scheduleRefreshSpinner(immediate: Boolean) {
+        refreshSpinnerDelayJob?.cancel()
+        if (immediate) return
+        refreshSpinnerDelayJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(NATURAL_LOAD_SPINNER_DELAY_MS)
+            _uiState.update { state ->
+                if (state.isLoading) state.copy(isPullToRefreshVisible = true) else state
+            }
+        }
+    }
+
+    companion object {
+        private const val NATURAL_LOAD_SPINNER_DELAY_MS = 300L
     }
 
     fun onClearSearch() {

@@ -51,6 +51,7 @@ data class FilesUiState(
     val showHidden: Boolean = false,
     val viewMode: FilesViewMode = FilesViewMode.LIST,
     val isLoading: Boolean = false,
+    val isPullToRefreshVisible: Boolean = false,
     val error: UiError? = null,
     val selectedItem: FileItem? = null,
     val selectedItemShares: List<ShareLink> = emptyList(),

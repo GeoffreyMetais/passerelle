@@ -87,6 +87,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -213,7 +214,8 @@ fun FilesRoute(
         onSortSelected = viewModel::onSortSelected,
         onToggleViewMode = viewModel::onToggleViewMode,
         onToggleShowHidden = viewModel::onToggleShowHidden,
-        onRefresh = viewModel::refresh,
+        onRefresh = { viewModel.refresh(fromPullToRefresh = false) },
+        onPullToRefresh = { viewModel.refresh(fromPullToRefresh = true) },
         onItemClick = viewModel::onItemClicked,
         onInspectItem = viewModel::onInspectItem,
         onQuickShare = viewModel::createQuickShareAndTriggerNativeShare,
@@ -245,6 +247,7 @@ fun FilesScreenContent(
     onToggleViewMode: () -> Unit,
     onToggleShowHidden: () -> Unit,
     onRefresh: () -> Unit,
+    onPullToRefresh: () -> Unit,
     onItemClick: (FileItem, Boolean) -> Unit,
     onInspectItem: (FileItem) -> Unit,
     onQuickShare: (FileItem) -> Unit,
@@ -264,7 +267,7 @@ fun FilesScreenContent(
 ) {
     val searchFocusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    var detailPanelWidth by rememberSaveable { mutableStateOf(380f) }
+    var customPanelWidth by rememberSaveable { mutableStateOf<Float?>(null) }
 
     Scaffold(
         modifier = modifier
@@ -309,7 +312,8 @@ fun FilesScreenContent(
                 .padding(innerPadding),
         ) {
             val isExpanded = maxWidth >= 840.dp
-            val maxPanelWidth = maxWidth.value * 0.65f
+            val maxPanelWidth = maxWidth.value * 0.80f
+            val defaultPanelWidth = (maxWidth.value * 0.35f).coerceIn(380f, 570f)
 
             Row(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -334,8 +338,8 @@ fun FilesScreenContent(
                     }
 
                     PullToRefreshBox(
-                        isRefreshing = uiState.isLoading,
-                        onRefresh = onRefresh,
+                        isRefreshing = uiState.isPullToRefreshVisible,
+                        onRefresh = onPullToRefresh,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     ) {
                         when {
@@ -412,14 +416,16 @@ fun FilesScreenContent(
                 }
 
                 if (isExpanded) {
+                    val effectivePanelWidth = (customPanelWidth ?: defaultPanelWidth).coerceIn(280f, maxPanelWidth)
                     DetailPanelDivider(
                         onDragDelta = { deltaDp ->
-                            detailPanelWidth = (detailPanelWidth - deltaDp).coerceIn(280f, maxPanelWidth)
+                            val current = (customPanelWidth ?: defaultPanelWidth).coerceIn(280f, maxPanelWidth)
+                            customPanelWidth = (current - deltaDp).coerceIn(280f, maxPanelWidth)
                         },
                     )
                     Surface(
                         modifier = Modifier
-                            .width(detailPanelWidth.dp)
+                            .width(effectivePanelWidth.dp)
                             .fillMaxHeight(),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         tonalElevation = 1.dp,
@@ -537,10 +543,12 @@ private fun DetailPanelDivider(
     modifier: Modifier = Modifier,
 ) {
     var dragging by remember { mutableStateOf(false) }
+    val currentOnDragDelta by rememberUpdatedState(onDragDelta)
     Box(
         modifier = modifier
             .width(16.dp)
             .fillMaxHeight()
+            .pointerHoverIcon(PointerIcon.Hand)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { dragging = true },
@@ -548,7 +556,7 @@ private fun DetailPanelDivider(
                     onDragCancel = { dragging = false },
                 ) { change, dragAmount ->
                     change.consume()
-                    onDragDelta(dragAmount.x.toDp().value)
+                    currentOnDragDelta(dragAmount.x.toDp().value)
                 }
             },
         contentAlignment = Alignment.Center,
