@@ -139,14 +139,18 @@ fun PasserelleAppRoot() {
                         onClick = { navigateTo(AppDestination.Files) },
                         icon = { Icon(Icons.Default.Folder, contentDescription = null) },
                         label = { Text(stringResource(Res.string.nav_files), modifier = Modifier.padding(horizontal = Spacing.sm)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
+                        modifier = Modifier
+                            .padding(horizontal = Spacing.xs)
+                            .pointerHoverIcon(PointerIcon.Hand),
                     )
                     item(
                         selected = !isFilesSelected,
                         onClick = { navigateTo(AppDestination.Shares) },
                         icon = { Icon(Icons.Default.Link, contentDescription = null) },
                         label = { Text(stringResource(Res.string.nav_shares), modifier = Modifier.padding(horizontal = Spacing.sm)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
+                        modifier = Modifier
+                            .padding(horizontal = Spacing.xs)
+                            .pointerHoverIcon(PointerIcon.Hand),
                     )
                 },
             ) {
