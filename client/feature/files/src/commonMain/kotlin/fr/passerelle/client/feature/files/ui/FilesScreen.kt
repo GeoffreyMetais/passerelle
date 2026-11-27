@@ -80,6 +80,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -332,7 +333,11 @@ fun FilesScreenContent(
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
 
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = onRefresh,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    ) {
                         when {
                             uiState.error != null && uiState.entries.isEmpty() -> {
                                 Column(
