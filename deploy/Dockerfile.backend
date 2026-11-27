@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1
+
+FROM rust:1-bookworm AS builder
+
+WORKDIR /app
+
+# Pre-cache Cargo dependencies using manifests and a dummy target
+COPY backend/Cargo.toml backend/Cargo.lock ./
+RUN mkdir -p src && \
+    echo 'fn main() {}' > src/main.rs && \
+    echo '' > src/lib.rs && \
+    cargo build --release --locked && \
+    rm -rf src
+
+# Copy full backend sources, migrations, and Askama templates
+COPY backend/src ./src
+COPY backend/migrations ./migrations
+COPY backend/templates ./templates
+
+# Force recompilation of our crate with real sources and build release binary
+RUN touch src/main.rs src/lib.rs && \
+    cargo build --release --locked --bin passerelle-backend && \
+    strip target/release/passerelle-backend
+
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --system --gid 1000 passerelle && \
+    useradd --system --uid 1000 --gid passerelle --home-dir /var/lib/passerelle --no-create-home passerelle && \
+    mkdir -p /data /var/lib/passerelle && \
+    chown -R passerelle:passerelle /var/lib/passerelle && \
+    chmod 0755 /data /var/lib/passerelle
+
+COPY --from=builder /app/target/release/passerelle-backend /usr/local/bin/passerelle-backend
+
+USER passerelle
+
+ENV BIND_ADDR=0.0.0.0:8080 \
+    DATA_DIR=/data \
+    STATE_DIR=/var/lib/passerelle \
+    RUST_LOG=info
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8080/health || exit 1
+
+ENTRYPOINT ["/usr/local/bin/passerelle-backend"]

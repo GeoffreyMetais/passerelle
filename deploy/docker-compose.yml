@@ -1,0 +1,63 @@
+services:
+  passerelle-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: passerelle-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      BIND_ADDR: "0.0.0.0:8080"
+      DATA_DIR: "/data"
+      STATE_DIR: "/var/lib/passerelle"
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in .env}"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set in .env (min 16 chars)}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:8080}"
+      API_BASE_PATH: "${API_BASE_PATH:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8080}"
+      MAX_ZIP_SIZE_BYTES: "${MAX_ZIP_SIZE_BYTES:-10737418240}"
+      RUST_LOG: "${RUST_LOG:-info}"
+    volumes:
+      - "${HOST_DATA_DIR:-./sample-data}:/data:ro"
+      - passerelle_state:/var/lib/passerelle
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - passerelle_net
+
+  passerelle-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: passerelle-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    environment:
+      API_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:8080}"
+      WEB_BASE_PATH: "${WEB_BASE_PATH:-}"
+    depends_on:
+      passerelle-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - passerelle_net
+
+volumes:
+  passerelle_state:
+    driver: local
+
+networks:
+  passerelle_net:
+    driver: bridge
