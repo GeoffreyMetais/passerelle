@@ -1,19 +1,24 @@
 const CACHE_NAME = 'passerelle-pwa-v1';
-const APP_SHELL_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/composeApp.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-512-maskable.png',
+const APP_SHELL_PATHS = [
+  './',
+  'index.html',
+  'manifest.webmanifest',
+  'composeApp.js',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-512-maskable.png',
 ];
+
+function getAppShellUrls() {
+  const scope = self.registration.scope;
+  return APP_SHELL_PATHS.map((path) => new URL(path, scope).href);
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return Promise.allSettled(
-        APP_SHELL_URLS.map((url) => cache.add(url))
+        getAppShellUrls().map((url) => cache.add(url))
       );
     }).then(() => self.skipWaiting())
   );
@@ -35,9 +40,11 @@ function shouldBypassCache(request) {
   if (request.method !== 'GET') return true;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return true;
-  if (url.pathname === '/config.json') return true;
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('/api/')) return true;
-  if (url.pathname.startsWith('/d/')) return true;
+  const scope = self.registration.scope;
+  if (!url.href.startsWith(scope)) return true;
+  if (url.pathname.endsWith('/config.json')) return true;
+  if (url.pathname.includes('/api/')) return true;
+  if (url.pathname.startsWith('/d/') || url.pathname.includes('/d/')) return true;
   return false;
 }
 

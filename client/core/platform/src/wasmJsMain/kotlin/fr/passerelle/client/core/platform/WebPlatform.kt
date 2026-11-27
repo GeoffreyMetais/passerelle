@@ -87,7 +87,7 @@ class WebServerUrlProvider : ServerUrlProvider {
 
     private suspend fun fetchConfigJson(): String? {
         return try {
-            val response = window.fetch("/config.json").await<Response>()
+            val response = window.fetch("./config.json").await<Response>()
             if (!response.ok) return null
             val body = response.text().await<String>()
             val parsed = json.decodeFromString<WebConfigJson>(body)

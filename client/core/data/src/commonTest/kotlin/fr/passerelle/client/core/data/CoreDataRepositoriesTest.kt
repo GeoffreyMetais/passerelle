@@ -350,4 +350,119 @@ class CoreDataRepositoriesTest {
         val deleted = repo.deleteShare(created.id)
         assertIs<Resource.Success<Unit>>(deleted)
     }
+
+    @Test
+    fun `repositories support subpath baseUrl for login files shares and token refresh`() = runTest {
+        val capturedUrls = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val fullUrl = request.url.toString()
+            capturedUrls.add("${request.method.value} $fullUrl")
+            when {
+                fullUrl == "https://partage.exemple.fr/passerelle-api/api/v1/auth/login" &&
+                    request.method == HttpMethod.Post -> respond(
+                    content = """
+                        {
+                          "accessToken": "expired_subpath_token",
+                          "refreshToken": "subpath_refresh_1",
+                          "expiresInSeconds": 900,
+                          "publicBaseUrl": "https://partage.exemple.fr/passerelle-api"
+                        }
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                fullUrl.startsWith("https://partage.exemple.fr/passerelle-api/api/v1/files") &&
+                    request.method == HttpMethod.Get -> {
+                    val authHeader = request.headers[HttpHeaders.Authorization]
+                    if (authHeader == "Bearer expired_subpath_token") {
+                        respond(
+                            content = """{"code":"TOKEN_EXPIRED","message":"Expired"}""",
+                            status = HttpStatusCode.Unauthorized,
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                        )
+                    } else if (authHeader == "Bearer fresh_subpath_token") {
+                        respond(
+                            content = """
+                                {
+                                  "currentPath": "",
+                                  "parentPath": null,
+                                  "breadcrumbs": [{"name":"Racine","path":""}],
+                                  "entries": []
+                                }
+                            """.trimIndent(),
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                        )
+                    } else {
+                        respond("unauthorized", HttpStatusCode.Unauthorized)
+                    }
+                }
+                fullUrl == "https://partage.exemple.fr/passerelle-api/api/v1/auth/refresh" &&
+                    request.method == HttpMethod.Post -> respond(
+                    content = """
+                        {
+                          "accessToken": "fresh_subpath_token",
+                          "refreshToken": "subpath_refresh_2",
+                          "expiresInSeconds": 900,
+                          "publicBaseUrl": "https://partage.exemple.fr/passerelle-api"
+                        }
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                fullUrl == "https://partage.exemple.fr/passerelle-api/api/v1/shares" &&
+                    request.method == HttpMethod.Post -> respond(
+                    content = """
+                        {
+                          "id": "01936d8a-7c10-7000-8000-000000000009",
+                          "slug": "subpath-doc",
+                          "publicUrl": "https://partage.exemple.fr/passerelle-api/subpath-doc",
+                          "directDownloadUrl": "https://partage.exemple.fr/passerelle-api/d/subpath-doc",
+                          "targetName": "readme.txt",
+                          "relativePath": "readme.txt",
+                          "isDirectory": false,
+                          "hasPassword": false,
+                          "expiresAt": null,
+                          "maxDownloads": null,
+                          "downloadCount": 0,
+                          "isRevoked": false,
+                          "isActive": true,
+                          "createdAt": "2026-11-27T09:30:00Z",
+                          "lastAccessedAt": null
+                        }
+                    """.trimIndent(),
+                    status = HttpStatusCode.Created,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                else -> respond("not found: $fullUrl", HttpStatusCode.NotFound)
+            }
+        }
+
+        val sessionStore = InMemorySessionStore()
+        val urlProvider = FixedServerUrlProvider("https://partage.exemple.fr/passerelle-api")
+        val client = createPasserelleHttpClient(engine, urlProvider, sessionStore)
+        val authRepo = AuthRepositoryImpl(client, urlProvider, sessionStore)
+        val fileRepo = FileRepositoryImpl(client, urlProvider)
+        val shareRepo = ShareRepositoryImpl(client, urlProvider)
+
+        val loginRes = authRepo.login(
+            serverUrl = "https://partage.exemple.fr/passerelle-api/",
+            username = "admin",
+            password = "secret",
+            deviceName = "PWA Web",
+        )
+        assertIs<Resource.Success<*>>(loginRes)
+
+        val filesRes = fileRepo.browse(path = "", sortBy = SortOption.NAME, sortOrder = SortDirection.ASC)
+        assertIs<Resource.Success<*>>(filesRes)
+
+        val shareRes = shareRepo.createShare(CreateShareParams(relativePath = "readme.txt", customSlug = "subpath-doc"))
+        val createdShare = assertIs<Resource.Success<*>>(shareRes).data as fr.passerelle.client.core.domain.model.ShareLink
+        assertEquals("https://partage.exemple.fr/passerelle-api/subpath-doc", createdShare.publicUrl)
+
+        assertTrue(capturedUrls.any { it == "POST https://partage.exemple.fr/passerelle-api/api/v1/auth/login" })
+        assertTrue(capturedUrls.any { it.startsWith("GET https://partage.exemple.fr/passerelle-api/api/v1/files") })
+        assertTrue(capturedUrls.any { it == "POST https://partage.exemple.fr/passerelle-api/api/v1/auth/refresh" })
+        assertTrue(capturedUrls.any { it == "POST https://partage.exemple.fr/passerelle-api/api/v1/shares" })
+    }
 }

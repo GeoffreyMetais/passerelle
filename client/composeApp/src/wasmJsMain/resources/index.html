@@ -10,9 +10,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Passerelle" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
     <style>
         :root {
             color-scheme: light dark;
@@ -91,7 +91,7 @@
 <body>
 <div id="splash" aria-label="Chargement de Passerelle">
     <div class="splash-badge">
-        <img src="/icons/icon-192.png" alt="Passerelle" width="48" height="48" style="border-radius: 12px;" />
+        <img src="./icons/icon-192.png" alt="Passerelle" width="48" height="48" style="border-radius: 12px;" />
     </div>
     <div class="splash-title">Passerelle</div>
     <div class="splash-spinner" role="progressbar"></div>
@@ -100,7 +100,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
         });
     }
     window.__hidePasserelleSplash = function () {

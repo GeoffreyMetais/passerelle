@@ -25,6 +25,7 @@ struct SharePageTemplate {
     og_title: String,
     og_description: String,
     og_url: String,
+    public_path_prefix: String,
     state: PublicViewState,
 }
 
@@ -63,6 +64,7 @@ pub async fn get_public_share(
 ) -> Response {
     let cookie_val = extract_unlock_cookie(&headers, &slug);
     let og_url = format!("{}/{}", state.public_base_url, slug);
+    let prefix = state.public_path_prefix.clone();
 
     match state
         .shares
@@ -82,6 +84,7 @@ pub async fn get_public_share(
                 og_title: share.target_name.clone(),
                 og_description: format!("Partage protégé ({size_label})"),
                 og_url,
+                public_path_prefix: prefix,
                 state: PublicViewState::Locked {
                     slug: share.slug.as_str().to_string(),
                     target_name: share.target_name,
@@ -111,6 +114,7 @@ pub async fn get_public_share(
                 og_title: share.target_name.clone(),
                 og_description: format!("{kind} · {size_label}"),
                 og_url,
+                public_path_prefix: prefix,
                 state: PublicViewState::Ready {
                     slug: share.slug.as_str().to_string(),
                     target_name: share.target_name,
@@ -125,16 +129,19 @@ pub async fn get_public_share(
             "Lien expiré",
             "Ce lien de partage a dépassé sa date de validité.",
             og_url,
+            prefix,
         ),
         Err(DomainError::ShareRevoked) => render_gone(
             "Lien révoqué",
             "Ce lien de partage a été désactivé par son propriétaire.",
             og_url,
+            prefix,
         ),
         Err(DomainError::QuotaExceeded) => render_gone(
             "Quota atteint",
             "Le nombre maximal de téléchargements autorisés pour ce lien a été atteint.",
             og_url,
+            prefix,
         ),
         Err(DomainError::NotFound)
         | Err(DomainError::InvalidSlug)
@@ -144,6 +151,7 @@ pub async fn get_public_share(
                 og_title: "Partage introuvable".to_string(),
                 og_description: "Ce lien de partage n'existe pas.".to_string(),
                 og_url,
+                public_path_prefix: prefix,
                 state: PublicViewState::Gone {
                     heading: "Lien introuvable".to_string(),
                     message: "Aucun fichier ou dossier ne correspond à cette adresse.".to_string(),
@@ -172,35 +180,44 @@ pub async fn unlock_public_share(
         return ApiError(DomainError::RateLimited).into_response();
     }
 
+    let prefix = &state.public_path_prefix;
     match state.shares.unlock_share(&slug, &form.password).await {
         Ok(signed_cookie) => {
             let cookie_name = format!("{UNLOCK_COOKIE_PREFIX}{slug}");
+            let cookie_path = if prefix.is_empty() {
+                "/".to_string()
+            } else {
+                format!("{prefix}/")
+            };
             let set_cookie = format!(
-                "{cookie_name}={signed_cookie}; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax"
+                "{cookie_name}={signed_cookie}; Path={cookie_path}; Max-Age=3600; HttpOnly; SameSite=Lax"
             );
-            let mut resp = Redirect::to(&format!("/{slug}")).into_response();
+            let mut resp = Redirect::to(&format!("{prefix}/{slug}")).into_response();
             if let Ok(val) = HeaderValue::from_str(&set_cookie) {
                 resp.headers_mut().insert(header::SET_COOKIE, val);
             }
             resp
         }
         Err(DomainError::InvalidPassword) => {
-            Redirect::to(&format!("/{slug}?error=1")).into_response()
+            Redirect::to(&format!("{prefix}/{slug}?error=1")).into_response()
         }
         Err(DomainError::ShareExpired) => render_gone(
             "Lien expiré",
             "Ce lien de partage a dépassé sa date de validité.",
             format!("{}/{}", state.public_base_url, slug),
+            prefix.clone(),
         ),
         Err(DomainError::ShareRevoked) => render_gone(
             "Lien révoqué",
             "Ce lien de partage a été désactivé par son propriétaire.",
             format!("{}/{}", state.public_base_url, slug),
+            prefix.clone(),
         ),
         Err(DomainError::QuotaExceeded) => render_gone(
             "Quota atteint",
             "Le nombre maximal de téléchargements autorisés pour ce lien a été atteint.",
             format!("{}/{}", state.public_base_url, slug),
+            prefix.clone(),
         ),
         Err(err) => ApiError(err).into_response(),
     }
@@ -281,12 +298,18 @@ pub async fn download_public_share(
     }
 }
 
-fn render_gone(heading: &str, message: &str, og_url: String) -> Response {
+fn render_gone(
+    heading: &str,
+    message: &str,
+    og_url: String,
+    public_path_prefix: String,
+) -> Response {
     let tpl = SharePageTemplate {
         title: format!("{heading} — Passerelle"),
         og_title: heading.to_string(),
         og_description: message.to_string(),
         og_url,
+        public_path_prefix,
         state: PublicViewState::Gone {
             heading: heading.to_string(),
             message: message.to_string(),

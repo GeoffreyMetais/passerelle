@@ -9,7 +9,7 @@ use crate::application::file_use_cases::FileUseCases;
 use crate::application::share_use_cases::ShareUseCases;
 use crate::domain::errors::DomainError;
 use crate::domain::ports::PasswordHasher;
-use crate::infrastructure::config::Config;
+use crate::infrastructure::config::{Config, extract_url_path_prefix};
 use crate::infrastructure::fs::{LocalFileSystem, PathGuard, WebpThumbnailer};
 use crate::infrastructure::http::build_router;
 use crate::infrastructure::http::rate_limit::RateLimiter;
@@ -65,15 +65,22 @@ pub async fn build_app_with_limits(
         config.max_zip_size_bytes,
     );
 
+    let public_path_prefix = extract_url_path_prefix(&config.public_base_url);
+
     let state = AppState {
         auth,
         files,
         shares,
         path_guard,
         public_base_url: config.public_base_url.clone(),
+        public_path_prefix,
         login_limiter: Arc::new(RateLimiter::new(login_max_requests, rate_window)),
         unlock_limiter: Arc::new(RateLimiter::new(unlock_max_requests, rate_window)),
     };
 
-    Ok(build_router(state, &config.allowed_origins))
+    Ok(build_router(
+        state,
+        &config.allowed_origins,
+        &config.base_path,
+    ))
 }

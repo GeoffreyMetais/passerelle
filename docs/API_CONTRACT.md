@@ -1,20 +1,20 @@
 # Contrat d'API Canonique — Passerelle (`v1`)
 
-Ce document fait foi pour l'intégration entre le conteneur **Rust API** (`backend/`, servi sur `https://s.domaine.fr`) et les clients **KMP PWA Web & Android** (`client/`).
+Ce document fait foi pour l'intégration entre le conteneur **Rust API** (`backend/`, servi à la racine `https://s.domaine.fr` ou sous un préfixe configurable `API_BASE_PATH` ex: `https://partage.exemple.fr/passerelle-api`) et les clients **KMP PWA Web & Android** (`client/`).
 
 Toutes les dates sont au format **ISO-8601 UTC** (`"2026-11-27T09:30:00Z"`). Tous les champs JSON utilisent le **`camelCase`**.
 
 ---
 
-## 1. Configuration Runtime de la PWA (`GET /config.json` sur Nginx `app.domaine.fr`)
+## 1. Configuration Runtime de la PWA (`GET ./config.json` sur Nginx)
 
 ```json
 {
-  "apiBaseUrl": "http://localhost:8080"
+  "apiBaseUrl": "https://partage.exemple.fr/passerelle-api"
 }
 ```
-- Sur **Web (`wasmJs`)** : l'application récupère `/config.json` au démarrage (avec repli sur `http://localhost:8080` en dev local) pour initialiser l'URL du serveur API.
-- Sur **Android** : l'utilisateur saisit l'URL du serveur (`https://s.domaine.fr`) sur l'écran de connexion (persistée localement).
+- Sur **Web (`wasmJs`)** : l'application récupère `./config.json` (relativement à son sous-dossier d'hébergement, ex. `/passerelle/config.json` ou `/config.json`) au démarrage (avec repli sur `http://localhost:8080` en dev local) pour initialiser l'URL du serveur API.
+- Sur **Android** : l'utilisateur saisit l'URL du serveur (`https://partage.exemple.fr/passerelle-api` ou `https://s.domaine.fr`) sur l'écran de connexion (persistée localement).
 
 ---
 
@@ -32,6 +32,8 @@ Codes standards : `INVALID_CREDENTIALS`, `UNAUTHORIZED`, `TOKEN_EXPIRED`, `FORBI
 ---
 
 ## 3. Santé & Authentification
+
+> **Préfixe configurable (`API_BASE_PATH`)** : lorsque `API_BASE_PATH` est défini (ex. `/passerelle-api`), toutes les routes ci-dessous (`/api/v1/*`, `/{slug}`, `/{slug}/unlock`, `/d/{slug}`, `/health`) sont montées sous ce préfixe. `GET /health` reste également accessible à la racine `/` pour les sondes Docker locales.
 
 ### `GET /health` (Public)
 Réponse `200 OK` :

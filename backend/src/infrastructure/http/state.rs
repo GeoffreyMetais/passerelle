@@ -19,6 +19,7 @@ pub struct AppState {
     pub shares: ShareUseCases,
     pub path_guard: PathGuard,
     pub public_base_url: String,
+    pub public_path_prefix: String,
     pub login_limiter: Arc<RateLimiter>,
     pub unlock_limiter: Arc<RateLimiter>,
 }

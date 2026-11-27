@@ -150,7 +150,7 @@
           <div class="error-banner">Mot de passe incorrect. Veuillez réessayer.</div>
         {% endif %}
         <p class="meta">Ce partage est protégé par mot de passe.{% if let Some(exp) = expires_label %} Valable jusqu'au {{ exp }}.{% endif %}</p>
-        <form method="post" action="/{{ slug }}/unlock">
+        <form method="post" action="{{ public_path_prefix }}/{{ slug }}/unlock">
           <input class="field" type="password" name="password" placeholder="Mot de passe" required autofocus>
           <button class="btn" type="submit">Déverrouiller</button>
         </form>
@@ -168,7 +168,7 @@
             <br>Échéance : {{ exp }}
           {% endif %}
         </p>
-        <a class="btn" href="/d/{{ slug }}">Télécharger</a>
+        <a class="btn" href="{{ public_path_prefix }}/d/{{ slug }}">Télécharger</a>
     {% endmatch %}
   </main>
 </body>

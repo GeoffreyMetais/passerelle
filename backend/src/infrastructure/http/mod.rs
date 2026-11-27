@@ -13,10 +13,10 @@ use axum::routing::{delete, get, patch, post};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
-pub fn build_router(state: AppState, allowed_origins: &[String]) -> Router {
+pub fn build_router(state: AppState, allowed_origins: &[String], base_path: &str) -> Router {
     let cors = build_cors_layer(allowed_origins);
 
-    Router::new()
+    let app_routes = Router::new()
         .route("/health", get(handlers_auth::health))
         .route("/api/v1/auth/login", post(handlers_auth::login))
         .route("/api/v1/auth/refresh", post(handlers_auth::refresh))
@@ -43,9 +43,18 @@ pub fn build_router(state: AppState, allowed_origins: &[String]) -> Router {
         .route("/d/{slug}", get(handlers_public::download_public_share))
         .route("/{slug}", get(handlers_public::get_public_share))
         .route("/{slug}/unlock", post(handlers_public::unlock_public_share))
-        .layer(cors)
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+        .with_state(state);
+
+    let normalized_base = crate::infrastructure::config::normalize_base_path(base_path);
+    let root_router = if normalized_base.is_empty() {
+        app_routes
+    } else {
+        Router::new()
+            .route("/health", get(handlers_auth::health))
+            .nest(&normalized_base, app_routes)
+    };
+
+    root_router.layer(cors).layer(TraceLayer::new_for_http())
 }
 
 fn build_cors_layer(allowed_origins: &[String]) -> CorsLayer {
