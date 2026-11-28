@@ -47,7 +47,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.toDp
 import fr.passerelle.client.core.designsystem.component.PasserelleIconBadge
 import fr.passerelle.client.core.designsystem.component.PasserelleStatusPill
 import fr.passerelle.client.core.designsystem.component.PasserelleStatusTone
