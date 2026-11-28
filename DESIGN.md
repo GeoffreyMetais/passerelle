@@ -1,151 +1,151 @@
 # Product Requirements Document (PRD) — Passerelle
 
-**Projet :** Passerelle (Transfert & Partage Sécurisé Souverain)  
-**Version :** 1.0.0  
-**Statut :** Validé / En phase de conception & prototypage  
-**Date :** Novembre 2026  
-**Auteurs :** Équipe Produit & Architecture Sécurité Passerelle  
+**Project:** Passerelle (Sovereign Secure Transfer & Sharing)  
+**Version:** 1.0.0  
+**Status:** Approved / In design & prototyping phase  
+**Date:** November 2026  
+**Authors:** Passerelle Product & Security Architecture Team  
 
 ---
 
-## 1. Vue d'ensemble & Vision Produit
+## 1. Overview & Product Vision
 
-### 1.1 Contexte & Problématique
-Le transfert de fichiers sensibles en entreprise ou entre particuliers repose aujourd'hui quasi-exclusivement sur des solutions SaaS centralisées ou des serveurs cloud tiers (WeTransfer, Google Drive, OneDrive, SwissTransfer, etc.). Ces intermédiaires posent des risques majeurs :
-- Rupture du secret et de la confidentialité par transit et stockage non souverains sur des infrastructures tierces.
-- Exposition aux lois extraterritoriales (ex. Cloud Act).
-- Clés de chiffrement souvent détenues ou déchiffrables par le prestataire de service.
-- Manque de contrôle en temps réel sur la durée de vie, la révocation et l'auditabilité des liens générés.
+### 1.1 Context & Problem Statement
+Transferring sensitive files within companies or between individuals today relies almost exclusively on centralized SaaS solutions or third-party cloud servers (WeTransfer, Google Drive, OneDrive, SwissTransfer, etc.). These intermediaries pose major risks:
+- Breach of secrecy and confidentiality through non-sovereign transit and storage on third-party infrastructures.
+- Exposure to extraterritorial laws (e.g. Cloud Act).
+- Encryption keys often held or decryptable by the service provider.
+- Lack of real-time control over the lifespan, revocation, and auditability of generated links.
 
-### 1.2 La Vision Passerelle
-**Passerelle** est une solution moderne, auto-hébergée (self-hosted) et zéro-connaissance (*Zero-Knowledge*), permettant d'exposer, de partager et de distribuer des fichiers et dossiers volumineux directement depuis sa propre instance locale (NAS, serveur privé, conteneur Docker, machine de travail), avec un chiffrement matériel de bout en bout (E2EE) et sans dépendre d'un cloud intermédiaire.
+### 1.2 The Passerelle Vision
+**Passerelle** is a modern, self-hosted, zero-knowledge solution for exposing, sharing, and distributing large files and folders directly from your own local instance (NAS, private server, Docker container, workstation), with end-to-end encryption (E2EE) and without depending on any third-party cloud.
 
 ---
 
-## 2. Objectifs Stratégiques & Mesures de Succès (KPIs)
+## 2. Strategic Goals & Success Metrics (KPIs)
 
-| Objectif | Métrique / KPI cible |
+| Goal | Metric / Target KPI |
 | :--- | :--- |
-| **Souveraineté & Zéro-Trace** | 100% du déchiffrement réalisé côté client (navigateur / WebAssembly). Aucune clé en clair reçue par le serveur. |
-| **Simplicité d'usage (UX)** | Moins de 3 clics et moins de 5 secondes pour créer un lien chiffré prêt à partager avec QR code. |
-| **Performance de transfert** | Débit maximal en connexion directe locale ou P2P (> 50 Mo/s en LAN / direct tunnel) avec vérification de hachage SHA-256 instantanée. |
-| **Adoption multi-device** | Expérience fluide et réactive de la vue destinataire sur desktop et mobile sans obligation de créer un compte. |
+| **Sovereignty & Zero-Trace** | 100% of decryption performed client-side (browser / WebAssembly). No plaintext key ever received by the server. |
+| **Ease of use (UX)** | Fewer than 3 clicks and under 5 seconds to create a share-ready encrypted link with QR code. |
+| **Transfer performance** | Maximum throughput on a direct local connection or P2P (> 50 MB/s on LAN / direct tunnel) with instant SHA-256 hash verification. |
+| **Multi-device adoption** | Smooth, responsive recipient view on desktop and mobile with no account creation required. |
 
 ---
 
-## 3. Personas Utilisateurs
+## 3. User Personas
 
-### Persona 1 : L'Hôte / L'Administrateur ("Alexandre", Ingénieur DevOps & RSSI)
-- **Besoins :** Partager des archives lourdes (`.tar.gz`, `.iso`, builds Linux, documentations confidentielles) avec des collaborateurs ou des tiers sans passer par un service SaaS grand public.
-- **Attentes :** Contrôle précis des quotas de téléchargements, révocation immédiate en 1 clic, expiration configurable, protection par mot de passe et journal d'audit local transparent.
+### Persona 1: The Host / Administrator ("Alexandre", DevOps Engineer & CISO)
+- **Needs:** Share heavy archives (`.tar.gz`, `.iso`, Linux builds, confidential documentation) with collaborators or third parties without going through a mainstream SaaS service.
+- **Expectations:** Precise control over download quotas, 1-click immediate revocation, configurable expiration, password protection, and a transparent local audit log.
 
-### Persona 2 : Le Destinataire ("Camille", Partenaire / Client)
-- **Besoins :** Récupérer un fichier sécurisé rapidement, sur ordinateur ou smartphone, sans friction et sans créer de compte.
-- **Attentes :** Interface rassurante, indicateurs de sécurité clairs (Zero-Knowledge, E2E), flash d'un QR code pour transfert direct sur mobile, barre de téléchargement transparente avec étapes cryptographiques.
+### Persona 2: The Recipient ("Camille", Partner / Customer)
+- **Needs:** Quickly retrieve a secure file on computer or smartphone, frictionless and without creating an account.
+- **Expectations:** Reassuring interface, clear security indicators (Zero-Knowledge, E2E), QR code flash for direct mobile transfer, transparent download bar with cryptographic steps.
 
 ---
 
-## 4. Parcours Utilisateur & Arborescence (Information Architecture)
+## 4. User Journeys & Information Architecture
 
 ```
-[INSTANCE LOCALE PASSERELLE]
+[LOCAL PASSERELLE INSTANCE]
 │
-├── 1. Explorateur de Fichiers (Vue Liste / Vue Grille)
-│   ├── Navigation arborescente (Dossiers, Fichiers, Métadonnées)
-│   ├── Actions contextuelles (Partager, Télécharger, Supprimer)
-│   └── Barre d'état système (Stockage NVMe/SSD, Nœud actif, Liens en cours)
+├─ 1. File Explorer (List View / Grid View)
+│   ├─ Tree navigation (Folders, Files, Metadata)
+│   ├─ Contextual actions (Share, Download, Delete)
+│   └─ System status bar (NVMe/SSD storage, active node, active links)
 │
-├── 2. Volet de Partage & Création de Liens (Side Drawer / Mobile Bottom Sheet)
-│   ├── Paramètres d'expiration (1h, 24h, 7 jours, 30 jours, Permanent)
-│   ├── Quota de téléchargement (Unique, 5, 10, Illimité)
-│   ├── Sécurité (Mot de passe / clé AES-256, Alias personnalisé)
-│   └── Génération instantanée → URL courte sécurisée + QR Code dynamique
+├─ 2. Share Drawer & Link Creation (Side Drawer / Mobile Bottom Sheet)
+│   ├─ Expiration settings (1h, 24h, 7 days, 30 days, Permanent)
+│   ├─ Download quota (Single, 5, 10, Unlimited)
+│   ├─ Security (Password / AES-256 key, custom alias)
+│   └─ Instant generation → secure short URL + dynamic QR Code
 │
-├── 3. Gestionnaire des Liens Partagés (Dashboard Liens)
-│   ├── Suivi des liens actifs et expirés
-│   ├── Télémétrie : compteur de téléchargements, horodatage, statut
-│   └── Actions : Édition rapide des règles, affichage QR Code, révocation immédiate
+├─ 3. Shared Links Manager (Links Dashboard)
+│   ├─ Tracking of active and expired links
+│   ├─ Telemetry: download counter, timestamp, status
+│   └─ Actions: quick rule editing, QR Code display, immediate revocation
 │
-└── 4. Interface Publique Destinataire (Sans authentification requise)
-    ├── Écran d'accueil sécurisé (Métadonnées du fichier, statut E2E, empreinte SHA-256)
-    ├── Saisie du mot de passe / clé de déchiffrement local
-    ├── Aperçu visuel sécurisé du document
-    └── Écran de progression (Pipeline cryptographique : ECDH, Chunks WASM, AES-GCM, SHA-256)
+└─ 4. Public Recipient Interface (No authentication required)
+    ├─ Secure landing screen (file metadata, E2E status, SHA-256 fingerprint)
+    ├─ Password / local decryption key entry
+    ├─ Secure visual preview of the document
+    └─ Progress screen (cryptographic pipeline: ECDH, WASM chunks, AES-GCM, SHA-256)
 ```
 
 ---
 
-## 5. Spécifications Fonctionnelles Détaillées
+## 5. Detailed Functional Specifications
 
-### 5.1 Explorateur de Fichiers (Desktop & Mobile)
-- **Vues commutables :** Vue Liste tabulaire détaillée (taille, date de modification, badge de statut) et Vue Grille avec prévisualisation des cartes de fichiers.
-- **Filtres et recherche :** Champ de recherche instantané (`Ctrl+K` / `⌘K`), filtres par type (`Tous`, `Dossiers`, `Fichiers & Médias`), tri alphabétique ou par date.
-- **Télémétrie système :** Indicateur d'espace disque disponible (`128 Go libres sur 256 Go`) et statut de l'instance (`:RO Lecture Seule` ou actif).
+### 5.1 File Explorer (Desktop & Mobile)
+- **Switchable views:** detailed tabular List view (size, modification date, status badge) and Grid view with file card previews.
+- **Filters and search:** instant search field (`Ctrl+K` / `⌘K`), type filters (`All`, `Folders`, `Files & Media`), alphabetical or date sorting.
+- **System telemetry:** available disk space indicator (`128 GB free of 256 GB`) and instance status (`:RO Read-Only` or active).
 
-### 5.2 Moteur de Partage & Génération de Liens
-- **Création rapide en 1 clic :** Génération avec profils par défaut (7 jours, accès illimité avec mot de passe optionnel).
-- **Règles d'accès fines :**
-  - Expiration temporelle automatique avec compte à rebours.
-  - Quota strict de téléchargements (ex: destruction après 1 téléchargement unique).
-  - Protection renforcée par passphrase / clé client locale.
-  - Alias d'URL personnalisable (ex. `/s/vacances-ete`, `/s/projet-carmen`).
-- **Diffusion multicanal :**
-  - Copie instantanée de l'URL publique (`http://localhost:8080/s/...`).
-  - QR Code vectoriel haute résolution avec glyphe Passerelle pour scan mobile direct.
-  - Raccourcis de partage natifs (e-mail, partage OS).
+### 5.2 Share Engine & Link Generation
+- **1-click quick creation:** generation with default profiles (7 days, unlimited access with optional password).
+- **Fine-grained access rules:**
+  - Automatic time-based expiration with countdown.
+  - Strict download quota (e.g. destruction after a single download).
+  - Strengthened protection via client-side passphrase / key.
+  - Customizable URL alias (e.g. `/s/summer-holidays`, `/s/carmen-project`).
+- **Multi-channel distribution:**
+  - Instant copy of the public URL (`http://localhost:8080/s/...`).
+  - High-resolution vector QR Code with a Passerelle glyph for direct mobile scanning.
+  - Native share shortcuts (email, OS sharing).
 
-### 5.3 Suivi & Cycle de Vie des Liens (Dashboard)
-- Filtrage par état : `Tous`, `Actifs`, `Expirés / Révoqués`.
-- Édition en cours de vie : modification de la date d'expiration ou du mot de passe sans casser le lien URL.
-- Révocation destructrice en 1 clic avec invalidation immédiate de la route sur le serveur hôte.
+### 5.3 Link Tracking & Lifecycle (Dashboard)
+- Filter by state: `All`, `Active`, `Expired / Revoked`.
+- In-flight editing: change the expiration date or the password without breaking the URL link.
+- 1-click destructive revocation with immediate route invalidation on the host server.
 
-### 5.4 Expérience de Téléchargement Destinataire (Desktop & Mobile)
-- **Shell minimaliste & sans friction :** Zéro menu d'administration, zéro inscription, focus 100% sur le document à recevoir.
-- **Déchiffrement côté navigateur :** Saisie du mot de passe déchiffrant la clé en mémoire vive sans transmission vers le serveur.
-- **Aperçu documentaire :** Prévisualisation des documents PDF/images dans un conteneur sécurisé vectoriel WebAssembly.
-- **Visualiseur de flux cryptographique pas-à-pas :**
-  1. *Échange de clés ECDH & Handshake* (Curve25519)
-  2. *Réception des fragments chiffrés* (Chunks WebAssembly)
-  3. *Déchiffrement local AES-256-GCM* (Web Workers en RAM)
-  4. *Contrôle d'intégrité SHA-256* (Vérification du hash d'origine)
-  5. *Assemblage & Sauvegarde locale* (File API navigateur)
-
----
-
-## 6. Spécifications Techniques & Architecture
-
-### 6.1 Pile Technologique Recommandée
-- **Frontend :** HTML5, Tailwind CSS / Passerelle Core Design System, TypeScript, WebAssembly (WASM) pour la cryptographie performante, Web Workers pour le calcul non bloquant.
-- **Backend / Serveur Hôte :** Go ou Rust (moteur léger et binaire unique autonome), API REST & WebSockets pour les transferts directs chunkés.
-- **Sécurité & Cryptographie :**
-  - Chiffrement symétrique : **AES-256-GCM**.
-  - Échange asymétrique de clés éphémères : **ECDH (Curve25519)**.
-  - Hachage d'intégrité : **SHA-256**.
-  - Transport : **TLS 1.3** avec fallback P2P local (WebRTC DataChannel).
-
-### 6.2 Principes de Sécurité Non Négociables
-- **Zero-Knowledge Architecture :** L'hôte stocke les blocs chiffrés ; le déchiffrement n'a lieu que dans la sandbox mémoire du navigateur du destinataire.
-- **Garantie Zéro-Trace :** Aucun fichier temporaire déchiffré n'est écrit sur le disque du serveur hôte lors d'une transmission.
-- **Auditabilité :** Journalisation locale immuable de chaque événement de téléchargement (horodatage, adresse IP locale/distante, succès/échec de vérification SHA-256).
+### 5.4 Recipient Download Experience (Desktop & Mobile)
+- **Minimalist, frictionless shell:** zero admin menu, zero sign-up, 100% focus on the document to receive.
+- **Browser-side decryption:** entry of the password that decrypts the key in RAM, never transmitted to the server.
+- **Document preview:** PDF/image preview in a secure WebAssembly vector container.
+- **Step-by-step cryptographic stream visualizer:**
+  1. *ECDH key exchange & handshake* (Curve25519)
+  2. *Encrypted chunk reception* (WebAssembly chunks)
+  3. *Local AES-256-GCM decryption* (Web Workers in RAM)
+  4. *SHA-256 integrity check* (original hash verification)
+  5. *Assembly & local save* (browser File API)
 
 ---
 
-## 7. Système de Design & Principes d'UI/UX
+## 6. Technical Specifications & Architecture
 
-- **Design System :** *Passerelle Core* (palette `#1d4ed8` bleu primaire cobalt, surfaces claires `#f8f9ff` à conteneurs bas `#eff4ff`, typographie `Inter`).
-- **Thèmes :** Support natif Clair (Light) et Sombre (Dark / OLED).
-- **Accessibilité & Ergonomie :**
-  - Cibles tactiles mobiles supérieures à 48px.
-  - Contrastes WCAG AAA sur les métadonnées et puces d'état.
-  - Composants natifs réactifs : Bottom Sheets sur mobile, Right Drawers sur Desktop.
+### 6.1 Recommended Tech Stack
+- **Frontend:** HTML5, Tailwind CSS / Passerelle Core Design System, TypeScript, WebAssembly (WASM) for high-performance cryptography, Web Workers for non-blocking computation.
+- **Backend / Host Server:** Go or Rust (lightweight engine and single self-contained binary), REST API & WebSockets for direct chunked transfers.
+- **Security & Cryptography:**
+  - Symmetric encryption: **AES-256-GCM**.
+  - Ephemeral asymmetric key exchange: **ECDH (Curve25519)**.
+  - Integrity hashing: **SHA-256**.
+  - Transport: **TLS 1.3** with local P2P fallback (WebRTC DataChannel).
+
+### 6.2 Non-Negotiable Security Principles
+- **Zero-Knowledge Architecture:** the host stores encrypted blocks; decryption only happens in the recipient browser's memory sandbox.
+- **Zero-Trace Guarantee:** no decrypted temporary file is ever written to the host server's disk during a transfer.
+- **Auditability:** immutable local log of every download event (timestamp, local/remote IP address, SHA-256 verification success/failure).
 
 ---
 
-## 8. Feuille de Route & Jalons (Roadmap)
+## 7. Design System & UI/UX Principles
 
-| Phase | Livrables clés | Statut |
+- **Design System:** *Passerelle Core* (cobalt primary blue palette `#1d4ed8`, light surfaces `#f8f9ff` down to low containers `#eff4ff`, `Inter` typography).
+- **Themes:** native Light and Dark (OLED) support.
+- **Accessibility & Ergonomics:**
+  - Mobile touch targets above 48px.
+  - WCAG AAA contrasts on metadata and status chips.
+  - Reactive native components: Bottom Sheets on mobile, Right Drawers on Desktop.
+
+---
+
+## 8. Roadmap & Milestones
+
+| Phase | Key deliverables | Status |
 | :--- | :--- | :--- |
-| **Phase 1 (Actuelle)** | Conception UI/UX complète (Desktop & Mobile) : Explorateur, Partage, Liens, Page Destinataire, Progress Bar. | **Terminé** (Écrans validés) |
-| **Phase 2** | Spécification de l'API REST/WebSocket & maquettage des flux de journaux d'audit. | **En cours** |
-| **Phase 3** | Développement du moteur backend léger (Go/Rust) et intégration WebAssembly cryptographique. | T1 2027 |
-| **Phase 4** | Transfert P2P via WebRTC en réseau local et package Docker/TrueNAS/Synology en 1 clic. | T2 2027 |
+| **Phase 1 (Current)** | Complete UI/UX design (Desktop & Mobile): Explorer, Sharing, Links, Recipient Page, Progress Bar. | **Done** (screens approved) |
+| **Phase 2** | REST/WebSocket API specification & audit log flow mockups. | **In progress** |
+| **Phase 3** | Development of the lightweight backend engine (Go/Rust) and WebAssembly cryptographic integration. | Q1 2027 |
+| **Phase 4** | P2P transfer via WebRTC on the local network and 1-click Docker/TrueNAS/Synology package. | Q2 2027 |
