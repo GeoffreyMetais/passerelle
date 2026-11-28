@@ -96,6 +96,9 @@ JWT_SECRET=generez-avec-openssl-rand-hex-32
 > [!IMPORTANT]
 > `JWT_SECRET` doit contenir au minimum **16 caractères** (utilisez par exemple `openssl rand -hex 32`), et `PUBLIC_BASE_URL` / `ALLOWED_ORIGINS` ne doivent pas comporter de slash final.
 
+> [!TIP]
+> Pour changer le mot de passe administrateur une fois le backend déployé, consultez [docs/ADMIN_PASSWORD.md](docs/ADMIN_PASSWORD.md).
+
 ### 2. Construire et démarrer les conteneurs
 
 ```bash
