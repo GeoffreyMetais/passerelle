@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,9 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.window.core.layout.WindowWidthSizeClass
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.window.core.layout.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,11 +53,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import fr.passerelle.client.core.designsystem.component.PasserelleBrandMark
+import fr.passerelle.client.core.designsystem.component.PasserelleReadOnlyPill
 import fr.passerelle.client.core.designsystem.component.TooltipIconButton
 import fr.passerelle.client.core.designsystem.resources.Res
 import fr.passerelle.client.core.designsystem.resources.action_logout
 import fr.passerelle.client.core.designsystem.resources.action_toggle_theme
+import fr.passerelle.client.core.designsystem.resources.app_badge_readonly
 import fr.passerelle.client.core.designsystem.resources.app_name
+import fr.passerelle.client.core.designsystem.resources.app_readonly_pill
 import fr.passerelle.client.core.designsystem.resources.nav_files
 import fr.passerelle.client.core.designsystem.resources.nav_shares
 import fr.passerelle.client.core.designsystem.theme.Layout
@@ -142,6 +148,11 @@ fun PasserelleAppRoot() {
                             false
                         }
                     },
+                navigationSuiteColors = NavigationSuiteDefaults.colors(
+                    navigationBarContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    navigationRailContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    navigationDrawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                ),
                 navigationSuiteItems = {
                     item(
                         selected = isFilesSelected,
@@ -180,35 +191,59 @@ fun PasserelleAppRoot() {
                 },
             ) {
                 Scaffold(
+                    containerColor = MaterialTheme.colorScheme.surface,
                     topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    text = if (isFilesSelected) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            TopAppBar(
+                                title = {
+                                    val sectionTitle = if (isFilesSelected) {
                                         stringResource(Res.string.nav_files)
                                     } else {
                                         stringResource(Res.string.nav_shares)
-                                    },
-                                )
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                            ),
-                            actions = {
-                                TooltipIconButton(
-                                    tooltipText = stringResource(Res.string.action_toggle_theme),
-                                    icon = if (useDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                    onClick = { darkThemeOverride = !useDarkTheme },
-                                )
-                                TooltipIconButton(
-                                    tooltipText = stringResource(Res.string.action_logout),
-                                    icon = Icons.AutoMirrored.Filled.Logout,
-                                    onClick = {
-                                        coroutineScope.launch { logoutUseCase() }
-                                    },
-                                )
-                            },
-                        )
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                                    ) {
+                                        PasserelleBrandMark(
+                                            title = stringResource(Res.string.app_name),
+                                            subtitle = sectionTitle,
+                                            badgeText = if (!isRailLayout) {
+                                                stringResource(Res.string.app_badge_readonly)
+                                            } else {
+                                                null
+                                            },
+                                        )
+                                        if (isRailLayout) {
+                                            PasserelleReadOnlyPill(
+                                                label = stringResource(Res.string.app_readonly_pill),
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                ),
+                                actions = {
+                                    TooltipIconButton(
+                                        tooltipText = stringResource(Res.string.action_toggle_theme),
+                                        icon = if (useDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                        onClick = { darkThemeOverride = !useDarkTheme },
+                                    )
+                                    TooltipIconButton(
+                                        tooltipText = stringResource(Res.string.action_logout),
+                                        icon = Icons.AutoMirrored.Filled.Logout,
+                                        onClick = {
+                                            coroutineScope.launch { logoutUseCase() }
+                                        },
+                                    )
+                                },
+                            )
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                            )
+                        }
                     },
                 ) { innerPadding ->
                     Box(

@@ -146,7 +146,10 @@ fun SvgQrCodeView(
         modifier = modifier,
         shape = RoundedCornerShape(Spacing.md),
         color = containerColor,
-        tonalElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
+        ),
     ) {
         Box(
             modifier = Modifier

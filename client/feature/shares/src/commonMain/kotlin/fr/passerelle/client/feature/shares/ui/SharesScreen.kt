@@ -18,30 +18,27 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.FolderZip
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +46,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,13 +57,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.passerelle.client.core.designsystem.component.PasserelleActionStrip
+import fr.passerelle.client.core.designsystem.component.PasserelleFilterPill
+import fr.passerelle.client.core.designsystem.component.PasserelleIconBadge
+import fr.passerelle.client.core.designsystem.component.PasserelleSearchBar
+import fr.passerelle.client.core.designsystem.component.PasserelleStatusPill
+import fr.passerelle.client.core.designsystem.component.PasserelleStatusTone
+import fr.passerelle.client.core.designsystem.component.PasserelleSurfaceCard
+import fr.passerelle.client.core.designsystem.component.PasserelleToolbarButton
 import fr.passerelle.client.core.designsystem.component.SvgQrCodeView
 import fr.passerelle.client.core.designsystem.component.TooltipIconButton
 import fr.passerelle.client.core.designsystem.error.resolveMessage
@@ -82,6 +88,8 @@ import fr.passerelle.client.core.designsystem.resources.action_save
 import fr.passerelle.client.core.designsystem.resources.action_share
 import fr.passerelle.client.core.designsystem.resources.files_clear_search
 import fr.passerelle.client.core.designsystem.resources.files_quota_custom
+import fr.passerelle.client.core.designsystem.resources.shares_active_count
+import fr.passerelle.client.core.designsystem.resources.shares_active_count_single
 import fr.passerelle.client.core.designsystem.resources.shares_clear_expiration
 import fr.passerelle.client.core.designsystem.resources.shares_clear_password
 import fr.passerelle.client.core.designsystem.resources.shares_clear_quota
@@ -91,6 +99,7 @@ import fr.passerelle.client.core.designsystem.resources.shares_downloads_quota
 import fr.passerelle.client.core.designsystem.resources.shares_downloads_unlimited
 import fr.passerelle.client.core.designsystem.resources.shares_edit_title
 import fr.passerelle.client.core.designsystem.resources.shares_empty
+import fr.passerelle.client.core.designsystem.resources.shares_expires_prefix
 import fr.passerelle.client.core.designsystem.resources.shares_filter_active
 import fr.passerelle.client.core.designsystem.resources.shares_filter_all
 import fr.passerelle.client.core.designsystem.resources.shares_filter_inactive
@@ -102,6 +111,8 @@ import fr.passerelle.client.core.designsystem.resources.shares_search_placeholde
 import fr.passerelle.client.core.designsystem.resources.shares_status_active
 import fr.passerelle.client.core.designsystem.resources.shares_status_expired
 import fr.passerelle.client.core.designsystem.resources.shares_status_revoked
+import fr.passerelle.client.core.designsystem.resources.shares_subtitle
+import fr.passerelle.client.core.designsystem.resources.shares_title
 import fr.passerelle.client.core.designsystem.resources.shares_zip_archive
 import fr.passerelle.client.core.designsystem.resources.snackbar_link_copied
 import fr.passerelle.client.core.designsystem.resources.snackbar_share_deleted
@@ -193,8 +204,13 @@ fun SharesScreenContent(
     onConfirmDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val totalCount = uiState.allShares.size
+    val activeCount = remember(uiState.allShares) { uiState.allShares.count { it.isActive } }
+    val inactiveCount = totalCount - activeCount
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
@@ -206,33 +222,49 @@ fun SharesScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    .padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
             ) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.shares_title),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        val activeBadgeLabel = if (activeCount == 1) {
+                            stringResource(Res.string.shares_active_count_single)
+                        } else {
+                            stringResource(Res.string.shares_active_count, activeCount)
+                        }
+                        PasserelleStatusPill(
+                            label = activeBadgeLabel,
+                            tone = PasserelleStatusTone.PRIMARY,
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.shares_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = onSearchQueryChanged,
-                        placeholder = { Text(stringResource(Res.string.shares_search_placeholder)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        trailingIcon = {
-                            if (uiState.searchQuery.isNotEmpty()) {
-                                TooltipIconButton(
-                                    tooltipText = stringResource(Res.string.files_clear_search),
-                                    icon = Icons.Default.Close,
-                                    onClick = { onSearchQueryChanged("") },
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(Spacing.lg),
+                    PasserelleSearchBar(
+                        query = uiState.searchQuery,
+                        onQueryChange = onSearchQueryChanged,
+                        placeholder = stringResource(Res.string.shares_search_placeholder),
+                        clearContentDescription = stringResource(Res.string.files_clear_search),
                         modifier = Modifier.weight(1f),
                     )
-                    TooltipIconButton(
+                    PasserelleToolbarButton(
                         tooltipText = stringResource(Res.string.action_refresh),
                         icon = Icons.Default.Refresh,
                         onClick = onRefresh,
@@ -245,23 +277,26 @@ fun SharesScreenContent(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    FilterChip(
+                    PasserelleFilterPill(
+                        label = stringResource(Res.string.shares_filter_all),
                         selected = uiState.filter == ShareFilter.ALL,
+                        count = totalCount,
+                        showCheckOnSelected = true,
                         onClick = { onFilterChanged(ShareFilter.ALL) },
-                        label = { Text(stringResource(Res.string.shares_filter_all)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                     )
-                    FilterChip(
+                    PasserelleFilterPill(
+                        label = stringResource(Res.string.shares_filter_active),
                         selected = uiState.filter == ShareFilter.ACTIVE,
+                        count = activeCount,
+                        showCheckOnSelected = true,
                         onClick = { onFilterChanged(ShareFilter.ACTIVE) },
-                        label = { Text(stringResource(Res.string.shares_filter_active)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                     )
-                    FilterChip(
+                    PasserelleFilterPill(
+                        label = stringResource(Res.string.shares_filter_inactive),
                         selected = uiState.filter == ShareFilter.INACTIVE,
+                        count = inactiveCount,
+                        showCheckOnSelected = true,
                         onClick = { onFilterChanged(ShareFilter.INACTIVE) },
-                        label = { Text(stringResource(Res.string.shares_filter_inactive)) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                     )
                 }
             }
@@ -327,6 +362,7 @@ fun SharesScreenContent(
     uiState.qrSvgForModal?.let { svg ->
         AlertDialog(
             onDismissRequest = onDismissQr,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             title = {
                 Text(
                     text = uiState.qrShareTitle ?: stringResource(Res.string.shares_qr_title),
@@ -364,10 +400,18 @@ fun SharesScreenContent(
     uiState.deletingShare?.let { deleting ->
         AlertDialog(
             onDismissRequest = onDismissDelete,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             title = { Text(stringResource(Res.string.shares_delete_confirm_title)) },
             text = { Text(stringResource(Res.string.shares_delete_confirm_body, deleting.slug)) },
             confirmButton = {
-                Button(onClick = onConfirmDelete) {
+                Button(
+                    onClick = onConfirmDelete,
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) {
                     Text(stringResource(Res.string.action_delete))
                 }
             },
@@ -389,32 +433,32 @@ private fun ShareCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    ElevatedCard(
+    PasserelleSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                Icon(
-                    imageVector = if (share.isDirectory) Icons.Default.FolderZip else Icons.AutoMirrored.Filled.InsertDriveFile,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                PasserelleIconBadge(
+                    icon = if (share.isDirectory) Icons.Default.FolderZip else Icons.AutoMirrored.Filled.InsertDriveFile,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    size = 40.dp,
+                    iconSize = 20.dp,
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = share.targetName,
                         style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -438,93 +482,132 @@ private fun ShareCard(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                AssistChip(
-                    onClick = {},
-                    label = {
-                        Text(
-                            text = when {
-                                share.isActive -> stringResource(Res.string.shares_status_active)
-                                share.isRevoked -> stringResource(Res.string.shares_status_revoked)
-                                else -> stringResource(Res.string.shares_status_expired)
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                PasserelleStatusPill(
+                    label = when {
+                        share.isActive -> stringResource(Res.string.shares_status_active)
+                        share.isRevoked -> stringResource(Res.string.shares_status_revoked)
+                        else -> stringResource(Res.string.shares_status_expired)
                     },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = if (share.isActive) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.errorContainer
-                        },
-                        labelColor = if (share.isActive) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        },
-                    ),
+                    tone = if (share.isActive) {
+                        PasserelleStatusTone.ACTIVE
+                    } else {
+                        PasserelleStatusTone.DANGER
+                    },
+                    leadingDot = true,
                 )
             }
 
-            Text(
-                text = share.publicUrl,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            val maxDl = share.maxDownloads
-            if (maxDl != null && maxDl > 0) {
-                Text(
-                    text = stringResource(Res.string.shares_downloads_quota, share.downloadCount, maxDl),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                LinearProgressIndicator(
-                    progress = { (share.downloadCount.toFloat() / maxDl.toFloat()).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                )
-            } else {
-                Text(
-                    text = stringResource(Res.string.shares_downloads_unlimited, share.downloadCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            share.expiresAt?.let { exp ->
-                Text(
-                    text = exp.toString().replace('T', ' ').substringBefore('.'),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Row(
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                TooltipIconButton(
-                    tooltipText = stringResource(Res.string.action_copy_link),
-                    icon = Icons.Default.ContentCopy,
-                    onClick = onCopyLink,
-                )
-                TooltipIconButton(
-                    tooltipText = stringResource(Res.string.action_share),
-                    icon = Icons.Default.Share,
-                    onClick = onShareLink,
-                )
-                TooltipIconButton(
-                    tooltipText = stringResource(Res.string.action_qr_code),
-                    icon = Icons.Default.QrCode2,
-                    onClick = onOpenQr,
-                )
-                TooltipIconButton(
-                    tooltipText = stringResource(Res.string.action_edit),
-                    icon = Icons.Default.Edit,
-                    onClick = onEdit,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = Spacing.sm + 2.dp, end = Spacing.xs, top = 2.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = share.publicUrl,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TooltipIconButton(
+                        tooltipText = stringResource(Res.string.action_copy_link),
+                        icon = Icons.Default.ContentCopy,
+                        tint = MaterialTheme.colorScheme.primary,
+                        onClick = onCopyLink,
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp)) {
+                val maxDl = share.maxDownloads
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Text(
+                        text = if (maxDl != null && maxDl > 0) {
+                            stringResource(Res.string.shares_downloads_quota, share.downloadCount, maxDl)
+                        } else {
+                            stringResource(Res.string.shares_downloads_unlimited, share.downloadCount)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (maxDl != null && maxDl > 0) {
+                    LinearProgressIndicator(
+                        progress = { (share.downloadCount.toFloat() / maxDl.toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape),
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    )
+                }
+                share.expiresAt?.let { exp ->
+                    val formattedDate = exp.toString().replace('T', ' ').substringBefore('.')
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Event,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Text(
+                            text = stringResource(Res.string.shares_expires_prefix, formattedDate),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            PasserelleActionStrip {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TooltipIconButton(
+                        tooltipText = stringResource(Res.string.action_copy_link),
+                        icon = Icons.Default.ContentCopy,
+                        onClick = onCopyLink,
+                    )
+                    TooltipIconButton(
+                        tooltipText = stringResource(Res.string.action_share),
+                        icon = Icons.Default.Share,
+                        onClick = onShareLink,
+                    )
+                    TooltipIconButton(
+                        tooltipText = stringResource(Res.string.action_qr_code),
+                        icon = Icons.Default.QrCode2,
+                        onClick = onOpenQr,
+                    )
+                    TooltipIconButton(
+                        tooltipText = stringResource(Res.string.action_edit),
+                        icon = Icons.Default.Edit,
+                        onClick = onEdit,
+                    )
+                }
                 TooltipIconButton(
                     tooltipText = stringResource(Res.string.action_delete),
                     icon = Icons.Default.Delete,
@@ -550,6 +633,7 @@ private fun EditShareDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         title = { Text(stringResource(Res.string.shares_edit_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -573,6 +657,7 @@ private fun EditShareDialog(
                     enabled = !state.clearMaxDownloads,
                     label = { Text(stringResource(Res.string.files_quota_custom)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -602,6 +687,7 @@ private fun EditShareDialog(
                     label = { Text(stringResource(Res.string.shares_new_password)) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -615,16 +701,27 @@ private fun EditShareDialog(
                 }
 
                 state.error?.let { err ->
-                    Text(
-                        text = err.resolveMessage(),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = err.resolveMessage(),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(Spacing.sm),
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onSubmit, enabled = !state.isSubmitting) {
+            Button(
+                onClick = onSubmit,
+                enabled = !state.isSubmitting,
+                shape = CircleShape,
+            ) {
                 Text(stringResource(Res.string.action_save))
             }
         },

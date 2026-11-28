@@ -1,18 +1,20 @@
 package fr.passerelle.client.feature.files.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +29,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -49,27 +52,20 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -95,6 +91,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -109,11 +106,19 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.passerelle.client.core.designsystem.component.PasserelleFilterPill
+import fr.passerelle.client.core.designsystem.component.PasserelleIconBadge
+import fr.passerelle.client.core.designsystem.component.PasserelleSearchBar
+import fr.passerelle.client.core.designsystem.component.PasserelleStatusPill
+import fr.passerelle.client.core.designsystem.component.PasserelleStatusTone
+import fr.passerelle.client.core.designsystem.component.PasserelleSurfaceCard
+import fr.passerelle.client.core.designsystem.component.PasserelleToolbarButton
 import fr.passerelle.client.core.designsystem.component.SvgQrCodeView
 import fr.passerelle.client.core.designsystem.component.TooltipIconButton
 import fr.passerelle.client.core.designsystem.error.resolveMessage
@@ -141,6 +146,8 @@ import fr.passerelle.client.core.designsystem.resources.files_expiry_7d
 import fr.passerelle.client.core.designsystem.resources.files_expiry_label
 import fr.passerelle.client.core.designsystem.resources.files_expiry_never
 import fr.passerelle.client.core.designsystem.resources.files_folder_label
+import fr.passerelle.client.core.designsystem.resources.files_item_count
+import fr.passerelle.client.core.designsystem.resources.files_item_count_single
 import fr.passerelle.client.core.designsystem.resources.files_password_optional
 import fr.passerelle.client.core.designsystem.resources.files_quota_1
 import fr.passerelle.client.core.designsystem.resources.files_quota_10
@@ -148,7 +155,8 @@ import fr.passerelle.client.core.designsystem.resources.files_quota_5
 import fr.passerelle.client.core.designsystem.resources.files_quota_custom
 import fr.passerelle.client.core.designsystem.resources.files_quota_label
 import fr.passerelle.client.core.designsystem.resources.files_quota_unlimited
-import fr.passerelle.client.core.designsystem.resources.files_search_placeholder
+import fr.passerelle.client.core.designsystem.resources.files_search_placeholder_short
+import fr.passerelle.client.core.designsystem.resources.files_search_shortcut
 import fr.passerelle.client.core.designsystem.resources.files_select_hint
 import fr.passerelle.client.core.designsystem.resources.files_share_action_quick
 import fr.passerelle.client.core.designsystem.resources.files_share_created_title
@@ -303,6 +311,7 @@ fun FilesScreenContent(
                     false
                 }
             },
+        containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
@@ -313,7 +322,7 @@ fun FilesScreenContent(
         ) {
             val isExpanded = maxWidth >= 840.dp
             val maxPanelWidth = maxWidth.value * 0.80f
-            val defaultPanelWidth = (maxWidth.value * 0.35f).coerceIn(380f, 570f)
+            val defaultPanelWidth = (maxWidth.value * 0.34f).coerceIn(380f, 440f)
 
             Row(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -323,6 +332,7 @@ fun FilesScreenContent(
                 ) {
                     FilesHeaderToolbar(
                         uiState = uiState,
+                        isExpanded = isExpanded,
                         searchFocusRequester = searchFocusRequester,
                         onBreadcrumbClick = onBreadcrumbClick,
                         onSearchQueryChanged = onSearchQueryChanged,
@@ -375,7 +385,13 @@ fun FilesScreenContent(
                             uiState.viewMode == FilesViewMode.LIST -> {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = Spacing.xl),
+                                    contentPadding = PaddingValues(
+                                        start = Spacing.md,
+                                        end = Spacing.md,
+                                        top = Spacing.xs,
+                                        bottom = Spacing.xl,
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp),
                                 ) {
                                     items(uiState.entries, key = { it.path }) { item ->
                                         FileListRow(
@@ -383,12 +399,9 @@ fun FilesScreenContent(
                                             thumbnailBytes = uiState.thumbnails[item.path],
                                             isSelected = uiState.selectedItem?.path == item.path,
                                             onClick = { onItemClick(item, true) },
-                                            onShareClick = {
-                                                if (isExpanded) onInspectItem(item) else onInspectItem(item)
-                                            },
+                                            onShareClick = { onInspectItem(item) },
                                             onQuickShareClick = { onQuickShare(item) },
                                         )
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
                                     }
                                 }
                             }
@@ -397,8 +410,8 @@ fun FilesScreenContent(
                                     columns = GridCells.Adaptive(minSize = 180.dp),
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(Spacing.md),
-                                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+                                    verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
                                 ) {
                                     items(uiState.entries, key = { it.path }) { item ->
                                         FileGridCard(
@@ -416,19 +429,18 @@ fun FilesScreenContent(
                 }
 
                 if (isExpanded) {
-                    val effectivePanelWidth = (customPanelWidth ?: defaultPanelWidth).coerceIn(280f, maxPanelWidth)
+                    val effectivePanelWidth = (customPanelWidth ?: defaultPanelWidth).coerceIn(300f, maxPanelWidth)
                     DetailPanelDivider(
                         onDragDelta = { deltaDp ->
-                            val current = (customPanelWidth ?: defaultPanelWidth).coerceIn(280f, maxPanelWidth)
-                            customPanelWidth = (current - deltaDp).coerceIn(280f, maxPanelWidth)
+                            val current = (customPanelWidth ?: defaultPanelWidth).coerceIn(300f, maxPanelWidth)
+                            customPanelWidth = (current - deltaDp).coerceIn(300f, maxPanelWidth)
                         },
                     )
                     Surface(
                         modifier = Modifier
                             .width(effectivePanelWidth.dp)
                             .fillMaxHeight(),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        tonalElevation = 1.dp,
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
                     ) {
                         val selected = uiState.selectedItem
                         if (selected == null) {
@@ -477,6 +489,7 @@ fun FilesScreenContent(
                 ModalBottomSheet(
                     onDismissRequest = onDismissSelection,
                     sheetState = sheetState,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
                 ) {
                     val selected = uiState.selectedItem
                     InspectorAndSharePanel(
@@ -513,6 +526,7 @@ fun FilesScreenContent(
     uiState.qrSvgForModal?.let { svg ->
         AlertDialog(
             onDismissRequest = onDismissQr,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             title = {
                 Text(
                     text = uiState.qrShareTitle ?: stringResource(Res.string.shares_qr_title),
@@ -546,7 +560,7 @@ private fun DetailPanelDivider(
     val currentOnDragDelta by rememberUpdatedState(onDragDelta)
     Box(
         modifier = modifier
-            .width(16.dp)
+            .width(12.dp)
             .fillMaxHeight()
             .pointerHoverIcon(PointerIcon.Hand)
             .pointerInput(Unit) {
@@ -563,13 +577,13 @@ private fun DetailPanelDivider(
     ) {
         Box(
             modifier = Modifier
-                .width(if (dragging) 4.dp else 2.dp)
+                .width(if (dragging) 3.dp else 1.dp)
                 .fillMaxHeight()
                 .background(
                     color = if (dragging) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.outlineVariant
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
                     },
                 ),
         )
@@ -579,6 +593,7 @@ private fun DetailPanelDivider(
 @Composable
 private fun FilesHeaderToolbar(
     uiState: FilesUiState,
+    isExpanded: Boolean,
     searchFocusRequester: FocusRequester,
     onBreadcrumbClick: (Breadcrumb) -> Unit,
     onSearchQueryChanged: (String) -> Unit,
@@ -592,7 +607,7 @@ private fun FilesHeaderToolbar(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         Row(
@@ -600,28 +615,19 @@ private fun FilesHeaderToolbar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = onSearchQueryChanged,
-                placeholder = { Text(stringResource(Res.string.files_search_placeholder)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        TooltipIconButton(
-                            tooltipText = stringResource(Res.string.files_clear_search),
-                            icon = Icons.Default.Close,
-                            onClick = onClearSearch,
-                        )
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(Spacing.lg),
+            PasserelleSearchBar(
+                query = uiState.searchQuery,
+                onQueryChange = onSearchQueryChanged,
+                placeholder = stringResource(Res.string.files_search_placeholder_short),
+                clearContentDescription = stringResource(Res.string.files_clear_search),
+                shortcutHint = if (isExpanded) stringResource(Res.string.files_search_shortcut) else null,
+                onClear = onClearSearch,
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(searchFocusRequester),
             )
 
-            TooltipIconButton(
+            PasserelleToolbarButton(
                 tooltipText = if (uiState.viewMode == FilesViewMode.LIST) {
                     stringResource(Res.string.files_view_grid)
                 } else {
@@ -635,7 +641,7 @@ private fun FilesHeaderToolbar(
                 onClick = onToggleViewMode,
             )
 
-            TooltipIconButton(
+            PasserelleToolbarButton(
                 tooltipText = stringResource(Res.string.action_refresh),
                 icon = Icons.Default.Refresh,
                 onClick = onRefresh,
@@ -644,35 +650,53 @@ private fun FilesHeaderToolbar(
 
         if (!uiState.isSearchActive) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                uiState.breadcrumbs.forEachIndexed { index, crumb ->
-                    if (index > 0) {
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                    TextButton(
-                        onClick = { onBreadcrumbClick(crumb) },
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
-                    ) {
-                        Text(
-                            text = crumb.name,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = if (index == uiState.breadcrumbs.lastIndex) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    uiState.breadcrumbs.forEachIndexed { index, crumb ->
+                        if (index > 0) {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        TextButton(
+                            onClick = { onBreadcrumbClick(crumb) },
+                            contentPadding = PaddingValues(horizontal = Spacing.sm, vertical = Spacing.xs),
+                            modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
+                        ) {
+                            Text(
+                                text = crumb.name,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (index == uiState.breadcrumbs.lastIndex) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
                     }
                 }
+                val itemCountLabel = if (uiState.entries.size == 1) {
+                    stringResource(Res.string.files_item_count_single)
+                } else {
+                    stringResource(Res.string.files_item_count, uiState.entries.size)
+                }
+                Text(
+                    text = itemCountLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = Spacing.sm),
+                )
             }
         }
 
@@ -701,18 +725,11 @@ private fun FilesHeaderToolbar(
                 direction = uiState.sortDirection,
                 onClick = { onSortSelected(SortOption.MODIFIED_AT) },
             )
-            FilterChip(
+            PasserelleFilterPill(
+                label = stringResource(Res.string.files_show_hidden),
                 selected = uiState.showHidden,
                 onClick = onToggleShowHidden,
-                label = { Text(stringResource(Res.string.files_show_hidden)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = if (uiState.showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                },
-                modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
+                leadingIcon = if (uiState.showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
             )
         }
     }
@@ -725,26 +742,15 @@ private fun SortChip(
     direction: SortDirection,
     onClick: () -> Unit,
 ) {
-    FilterChip(
+    PasserelleFilterPill(
+        label = label,
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
         trailingIcon = if (selected) {
-            {
-                Icon(
-                    imageVector = if (direction == SortDirection.ASC) {
-                        Icons.Default.ArrowUpward
-                    } else {
-                        Icons.Default.ArrowDownward
-                    },
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
+            if (direction == SortDirection.ASC) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward
         } else {
             null
         },
-        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
     )
 }
 
@@ -757,64 +763,90 @@ private fun FileListRow(
     onShareClick: () -> Unit,
     onQuickShareClick: () -> Unit,
 ) {
-    ListItem(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .pointerHoverIcon(PointerIcon.Hand),
-        colors = ListItemDefaults.colors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
-        leadingContent = {
-            FileThumbnailOrIcon(item = item, thumbnailBytes = thumbnailBytes, sizeDp = 44)
-        },
-        headlineContent = {
-            Text(
-                text = item.name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        supportingContent = {
-            val sizeText = if (item.isDirectory) {
-                stringResource(Res.string.files_folder_label)
-            } else {
-                formatFileSize(item.sizeBytes)
+    PasserelleSurfaceCard(
+        selected = isSelected,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .defaultMinSize(minHeight = 60.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.primary),
+                )
             }
-            Text(
-                text = sizeText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        trailingContent = {
             Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = Spacing.md, vertical = Spacing.sm + 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
-                if (item.activeShareCount > 0) {
-                    Badge(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                FileThumbnailOrIcon(item = item, thumbnailBytes = thumbnailBytes, sizeDp = 40)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    val sizeText = if (item.isDirectory) {
+                        stringResource(Res.string.files_folder_label)
+                    } else {
+                        formatFileSize(item.sizeBytes)
+                    }
+                    Text(
+                        text = sizeText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    if (item.activeShareCount > 0) {
+                        PasserelleStatusPill(
+                            label = item.activeShareCount.toString(),
+                            tone = PasserelleStatusTone.PRIMARY,
+                        )
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        } else {
+                            Color.Transparent
+                        },
                     ) {
-                        Text(
-                            text = item.activeShareCount.toString(),
-                            modifier = Modifier.padding(horizontal = Spacing.xs),
+                        TooltipIconButton(
+                            tooltipText = stringResource(Res.string.action_share),
+                            icon = Icons.Default.Share,
+                            tint = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            onClick = if (item.isDirectory) onShareClick else onQuickShareClick,
                         )
                     }
                 }
-                TooltipIconButton(
-                    tooltipText = stringResource(Res.string.action_share),
-                    icon = Icons.Default.Share,
-                    onClick = if (item.isDirectory) onShareClick else onQuickShareClick,
-                )
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -825,18 +857,10 @@ private fun FileGridCard(
     onClick: () -> Unit,
     onShareClick: () -> Unit,
 ) {
-    ElevatedCard(
+    PasserelleSurfaceCard(
+        selected = isSelected,
         onClick = onClick,
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerHoverIcon(PointerIcon.Hand),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.sm + Spacing.xs),
@@ -845,22 +869,20 @@ private fun FileGridCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(104.dp)
+                    .height(108.dp)
                     .clip(MaterialTheme.shapes.small)
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 contentAlignment = Alignment.Center,
             ) {
                 FileThumbnailOrIcon(item = item, thumbnailBytes = thumbnailBytes, sizeDp = 96)
                 if (item.activeShareCount > 0) {
-                    Badge(
+                    PasserelleStatusPill(
+                        label = stringResource(Res.string.files_active_shares_badge, item.activeShareCount),
+                        tone = PasserelleStatusTone.PRIMARY,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(Spacing.xs),
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ) {
-                        Text(item.activeShareCount.toString())
-                    }
+                            .padding(Spacing.xs + 2.dp),
+                    )
                 }
             }
             Row(
@@ -871,6 +893,11 @@ private fun FileGridCard(
                     Text(
                         text = item.name,
                         style = MaterialTheme.typography.titleSmall,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -889,8 +916,14 @@ private fun FileGridCard(
                     modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Link,
+                        imageVector = Icons.Default.Share,
                         contentDescription = stringResource(Res.string.action_share),
+                        tint = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -921,16 +954,30 @@ private fun FileThumbnailOrIcon(
                 .clip(MaterialTheme.shapes.small),
         )
     } else {
-        Icon(
-            imageVector = iconForFileItem(item),
-            contentDescription = null,
-            tint = if (item.isDirectory) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size((sizeDp * 0.62f).dp),
+        val (containerColor, contentColor) = fileBadgeColors(item)
+        PasserelleIconBadge(
+            icon = iconForFileItem(item),
+            containerColor = containerColor,
+            contentColor = contentColor,
+            size = sizeDp.dp,
+            iconSize = (sizeDp * 0.52f).dp,
         )
+    }
+}
+
+@Composable
+private fun fileBadgeColors(item: FileItem): Pair<Color, Color> {
+    if (item.isDirectory) {
+        return MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
+    }
+    val mime = item.mimeType.orEmpty().lowercase()
+    return when {
+        mime == "application/pdf" ->
+            MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        mime.startsWith("image/") || mime.startsWith("video/") || mime.startsWith("audio/") ->
+            MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        else ->
+            MaterialTheme.colorScheme.surfaceContainer to MaterialTheme.colorScheme.onSurfaceVariant
     }
 }
 
@@ -978,10 +1025,20 @@ private fun InspectorAndSharePanel(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
+            val (badgeBg, badgeFg) = fileBadgeColors(item)
+            PasserelleIconBadge(
+                icon = iconForFileItem(item),
+                containerColor = badgeBg,
+                contentColor = badgeFg,
+                size = 36.dp,
+                iconSize = 18.dp,
+            )
             Text(
                 text = stringResource(Res.string.files_create_share_title, item.name),
                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -1014,18 +1071,25 @@ private fun InspectorAndSharePanel(
         ) {
             FilledTonalButton(
                 onClick = onQuickShare,
+                shape = CircleShape,
                 modifier = Modifier
                     .weight(1f)
                     .pointerHoverIcon(PointerIcon.Hand),
             ) {
                 Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(Spacing.xs))
-                Text(stringResource(Res.string.files_share_action_quick))
+                Text(
+                    text = stringResource(Res.string.files_share_action_quick),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
             if (!item.isDirectory) {
                 OutlinedButton(
                     onClick = onDownloadDirect,
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                 ) {
                     Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1037,54 +1101,86 @@ private fun InspectorAndSharePanel(
 
         lastCreatedShare?.takeIf { it.relativePath == item.path }?.let { created ->
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(Spacing.sm + Spacing.xs),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Text(
-                        text = stringResource(Res.string.files_share_created_title),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Text(
-                        text = created.publicUrl,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        AssistChip(
-                            onClick = { onCopyLink(created.publicUrl) },
-                            label = { Text(stringResource(Res.string.action_copy_link)) },
-                            leadingIcon = { Icon(Icons.Default.ContentCopy, null, Modifier.size(16.dp)) },
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(18.dp),
                         )
+                        Text(
+                            text = stringResource(Res.string.files_share_created_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            Text(
+                                text = created.publicUrl,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TooltipIconButton(
+                                tooltipText = stringResource(Res.string.action_copy_link),
+                                icon = Icons.Default.ContentCopy,
+                                tint = MaterialTheme.colorScheme.primary,
+                                onClick = { onCopyLink(created.publicUrl) },
+                            )
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         AssistChip(
                             onClick = { onShareLink(created) },
                             label = { Text(stringResource(Res.string.action_share)) },
                             leadingIcon = { Icon(Icons.Default.Share, null, Modifier.size(16.dp)) },
+                            modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                         )
                         AssistChip(
                             onClick = { onOpenQr(created) },
                             label = { Text(stringResource(Res.string.action_qr_code)) },
                             leadingIcon = { Icon(Icons.Default.QrCode2, null, Modifier.size(16.dp)) },
+                            modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
                         )
                     }
                 }
             }
         }
 
-        HorizontalDivider()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
         Text(
             text = stringResource(Res.string.files_expiry_label),
             style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp),
         ) {
             ExpiryOptionChip(stringResource(Res.string.files_expiry_1h), form.expiryPreset == ExpiryPreset.ONE_HOUR) {
                 onExpiryPresetChanged(ExpiryPreset.ONE_HOUR)
@@ -1106,10 +1202,11 @@ private fun InspectorAndSharePanel(
         Text(
             text = stringResource(Res.string.files_quota_label),
             style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs + 2.dp),
         ) {
             val useCustom = form.customQuotaText.isNotEmpty()
             ExpiryOptionChip(stringResource(Res.string.files_quota_1), !useCustom && form.quotaPreset == QuotaPreset.ONE) {
@@ -1131,6 +1228,7 @@ private fun InspectorAndSharePanel(
             onValueChange = onCustomQuotaChanged,
             label = { Text(stringResource(Res.string.files_quota_custom)) },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -1142,6 +1240,7 @@ private fun InspectorAndSharePanel(
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -1151,20 +1250,29 @@ private fun InspectorAndSharePanel(
             label = { Text(stringResource(Res.string.files_custom_slug_optional)) },
             leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         )
 
         form.error?.let { uiError ->
-            Text(
-                text = uiError.resolveMessage(),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = uiError.resolveMessage(),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(Spacing.sm),
+                )
+            }
         }
 
         Button(
             onClick = onCreateShare,
             enabled = !form.isSubmitting,
+            shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
@@ -1184,25 +1292,28 @@ private fun InspectorAndSharePanel(
         if (isLoadingShares) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         } else if (existingShares.isNotEmpty()) {
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Text(
                 text = stringResource(Res.string.files_existing_shares, existingShares.size),
                 style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             existingShares.forEach { share ->
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
-                        modifier = Modifier.padding(Spacing.sm),
+                        modifier = Modifier.padding(Spacing.sm + 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "/${share.slug}",
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
+                                color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -1237,10 +1348,9 @@ private fun ExpiryOptionChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    FilterChip(
+    PasserelleFilterPill(
+        label = label,
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
-        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
     )
 }
