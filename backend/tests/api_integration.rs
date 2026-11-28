@@ -42,7 +42,7 @@ impl TestEnv {
         let state_dir = TempDir::new().unwrap();
         let outside_dir = TempDir::new().unwrap();
 
-        // Créer une arborescence réaliste dans DATA_DIR
+        // Create a realistic directory tree in DATA_DIR
         let photos_dir = data_dir.path().join("Photos").join("Vacances");
         let japan_dir = photos_dir.join("Japon");
         std::fs::create_dir_all(&japan_dir).unwrap();
@@ -51,19 +51,19 @@ impl TestEnv {
         std::fs::write(photos_dir.join("notes.txt"), b"Vacances notes").unwrap();
         std::fs::write(japan_dir.join("kyoto.txt"), b"Kyoto temple").unwrap();
 
-        // Fichiers cachés / NAS devant être ignorés par défaut
+        // Hidden / NAS files to be ignored by default
         std::fs::write(data_dir.path().join(".secret"), b"hidden").unwrap();
         std::fs::write(photos_dir.join(".DS_Store"), b"mac").unwrap();
         std::fs::create_dir_all(photos_dir.join("@eaDir")).unwrap();
         std::fs::write(photos_dir.join("@eaDir").join("meta"), b"synology").unwrap();
 
-        // Image PNG valide pour tester la génération de miniature WebP
+        // Valid PNG image to test WebP thumbnail generation
         let img = ImageBuffer::from_fn(320, 240, |x, y| {
             Rgb([(x % 255) as u8, (y % 255) as u8, 128])
         });
         img.save(photos_dir.join("plage.png")).unwrap();
 
-        // Fichier hors DATA_DIR + symlink sortant pour test anti-évasion
+        // File outside DATA_DIR + outgoing symlink for anti-escape test
         let outside_secret = outside_dir.path().join("etc_passwd_mock");
         std::fs::write(&outside_secret, b"root:x:0:0").unwrap();
         #[cfg(unix)]
@@ -210,7 +210,7 @@ async fn files_listing_breadcrumbs_hidden_search_thumbnails_and_path_traversal_b
     let env = TestEnv::new().await;
     let (access, _) = env.login().await;
 
-    // Listing racine : dossiers avant fichiers, fichiers cachés & symlinks sortants masqués
+    // Root listing: directories before files, hidden files & outgoing symlinks hidden
     let req = Request::builder()
         .uri("/api/v1/files")
         .header(header::AUTHORIZATION, format!("Bearer {access}"))
@@ -228,7 +228,7 @@ async fn files_listing_breadcrumbs_hidden_search_thumbnails_and_path_traversal_b
     assert!(entries.iter().all(|e| e["name"] != ".secret"));
     assert!(entries.iter().all(|e| e["name"] != "escape_symlink"));
 
-    // Listing sous-dossier avec fil d'Ariane et tri
+    // Subdirectory listing with breadcrumbs and sorting
     let req = Request::builder()
         .uri("/api/v1/files?path=Photos/Vacances&sortBy=name&sortOrder=desc")
         .header(header::AUTHORIZATION, format!("Bearer {access}"))
@@ -241,14 +241,14 @@ async fn files_listing_breadcrumbs_hidden_search_thumbnails_and_path_traversal_b
     assert_eq!(sub["parentPath"], "Photos");
     assert_eq!(sub["breadcrumbs"].as_array().unwrap().len(), 3);
     let sub_entries = sub["entries"].as_array().unwrap();
-    assert_eq!(sub_entries[0]["name"], "Japon"); // dossier toujours en premier même en desc
+    assert_eq!(sub_entries[0]["name"], "Japon"); // directory always first even in desc order
     assert!(
         sub_entries
             .iter()
             .all(|e| e["name"] != ".DS_Store" && e["name"] != "@eaDir")
     );
 
-    // Recherche récursive
+    // Recursive search
     let req = Request::builder()
         .uri("/api/v1/files/search?q=KYOTO")
         .header(header::AUTHORIZATION, format!("Bearer {access}"))
@@ -263,7 +263,7 @@ async fn files_listing_breadcrumbs_hidden_search_thumbnails_and_path_traversal_b
         "Photos/Vacances/Japon/kyoto.txt"
     );
 
-    // Miniature WebP + ETag 304 Not Modified
+    // WebP thumbnail + ETag 304 Not Modified
     let req = Request::builder()
         .uri("/api/v1/files/thumbnail?path=Photos/Vacances/plage.png")
         .header(header::AUTHORIZATION, format!("Bearer {access}"))
@@ -289,7 +289,7 @@ async fn files_listing_breadcrumbs_hidden_search_thumbnails_and_path_traversal_b
     let (status, _, _) = env.send(req304).await;
     assert_eq!(status, StatusCode::NOT_MODIFIED);
 
-    // Blocage Path Traversal strict
+    // Strict Path Traversal blocking
     for malicious in [
         "../etc/passwd",
         "%2e%2e/etc/passwd",
@@ -313,7 +313,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
     let env = TestEnv::new().await;
     let (access, _) = env.login().await;
 
-    // Rejet des slugs réservés
+    // Reserved slugs are rejected
     for reserved in ["api", "d", "health", "assets"] {
         let req = Request::builder()
             .method("POST")
@@ -334,7 +334,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
         assert_eq!(err["code"], "RESERVED_SLUG");
     }
 
-    // Création avec slug auto
+    // Creation with auto-generated slug
     let req = Request::builder()
         .method("POST")
         .uri("/api/v1/shares")
@@ -355,7 +355,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
     let slug = share["slug"].as_str().unwrap().to_string();
     assert_eq!(slug.len(), 8);
 
-    // Badge activeShareCount = 1 dans l'explorateur
+    // Badge activeShareCount = 1 in the file explorer
     let req = Request::builder()
         .uri("/api/v1/files")
         .header(header::AUTHORIZATION, format!("Bearer {access}"))
@@ -390,7 +390,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
     let svg = String::from_utf8(bytes).unwrap();
     assert!(svg.contains("<svg"));
 
-    // 1er téléchargement -> 200 OK
+    // 1st download -> 200 OK
     let dl1 = Request::builder()
         .uri(format!("/d/{slug}"))
         .body(Body::empty())
@@ -399,7 +399,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
     assert_eq!(status, StatusCode::OK);
     assert_eq!(bytes, b"0123456789ABCDEF");
 
-    // 2ème téléchargement -> 410 Gone (quota atteint)
+    // 2nd download -> 410 Gone (quota reached)
     let dl2 = Request::builder()
         .uri(format!("/d/{slug}"))
         .body(Body::empty())
@@ -414,7 +414,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
     let (status, _, _) = env.send(page_gone).await;
     assert_eq!(status, StatusCode::GONE);
 
-    // Augmentation du quota puis révocation par PATCH
+    // Quota increase then revocation via PATCH
     let patch_req = Request::builder()
         .method("PATCH")
         .uri(format!("/api/v1/shares/{share_id}"))
@@ -437,7 +437,7 @@ async fn shares_lifecycle_reserved_slugs_active_count_quota_expiration_and_revoc
     let (status, _, _) = env.send(revoked_page).await;
     assert_eq!(status, StatusCode::GONE);
 
-    // Lien expiré via PATCH dans le passé -> 410 Gone
+    // Link expired via PATCH in the past -> 410 Gone
     let unrevoke_expired = Request::builder()
         .method("PATCH")
         .uri(format!("/api/v1/shares/{share_id}"))
@@ -485,7 +485,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     let (status, _, _) = env.send(req).await;
     assert_eq!(status, StatusCode::CREATED);
 
-    // Page publique affiche le formulaire verrouillé
+    // Public page shows the locked form
     let page_req = Request::builder()
         .uri("/secure-readme")
         .body(Body::empty())
@@ -496,7 +496,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     assert!(html.contains("/secure-readme/unlock"));
     assert!(html.len() < 20 * 1024);
 
-    // Téléchargement sans mot de passe refusé
+    // Download without password is rejected
     let dl_no_auth = Request::builder()
         .uri("/d/secure-readme")
         .body(Body::empty())
@@ -504,7 +504,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     let (status, _, _) = env.send(dl_no_auth).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
-    // Unlock via formulaire -> 303 + Set-Cookie HttpOnly
+    // Unlock via form -> 303 + Set-Cookie HttpOnly
     let unlock_req = Request::builder()
         .method("POST")
         .uri("/secure-readme/unlock")
@@ -522,7 +522,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     assert!(set_cookie.contains("HttpOnly"));
     let cookie_kv = set_cookie.split(';').next().unwrap().to_string();
 
-    // Page déverrouillée affiche le bouton /d/secure-readme
+    // Unlocked page shows the /d/secure-readme button
     let unlocked_page = Request::builder()
         .uri("/secure-readme")
         .header(header::COOKIE, &cookie_kv)
@@ -533,7 +533,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     let html = String::from_utf8(bytes).unwrap();
     assert!(html.contains("/d/secure-readme"));
 
-    // Téléchargement Range 0-3 (consomme 1 quota -> downloadCount = 1)
+    // Range download 0-3 (consumes 1 quota -> downloadCount = 1)
     let dl_part1 = Request::builder()
         .uri("/d/secure-readme")
         .header(header::COOKIE, &cookie_kv)
@@ -544,7 +544,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     assert_eq!(status, StatusCode::PARTIAL_CONTENT);
     assert_eq!(bytes, b"0123");
 
-    // Reprise Range 4-7 (offset > 0 : NE DOIT PAS incrémenter downloadCount)
+    // Range resume 4-7 (offset > 0: MUST NOT increment downloadCount)
     let dl_part2 = Request::builder()
         .uri("/d/secure-readme")
         .header(header::COOKIE, &cookie_kv)
@@ -555,7 +555,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     assert_eq!(status, StatusCode::PARTIAL_CONTENT);
     assert_eq!(bytes, b"4567");
 
-    // Vérifier que downloadCount vaut toujours 1
+    // Check that downloadCount is still 1
     let list_req = Request::builder()
         .uri("/api/v1/shares?path=readme.txt")
         .header(header::AUTHORIZATION, format!("Bearer {access}"))
@@ -565,7 +565,7 @@ async fn password_protected_share_unlock_cookie_query_password_and_range_no_doub
     let list_json: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(list_json["shares"][0]["downloadCount"], 1);
 
-    // Téléchargement direct curl/wget via ?password=... (consomme le 2ème et dernier quota)
+    // Direct curl/wget download via ?password=... (consumes the 2nd and last quota)
     let dl_query = Request::builder()
         .uri("/d/secure-readme?password=my-secret-password")
         .body(Body::empty())

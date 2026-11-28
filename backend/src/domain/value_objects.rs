@@ -4,13 +4,13 @@ use std::fmt;
 
 const RESERVED_SLUGS: &[&str] = &["api", "d", "health", "assets", "robots.txt", "favicon.ico"];
 
-/// Value Object représentant un slug d'URL validé `[a-zA-Z0-9_-]{3,64}` hors mots réservés.
+/// Value Object representing a validated URL slug `[a-zA-Z0-9_-]{3,64}` excluding reserved words.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Slug(String);
 
 impl Slug {
-    /// Valide et construit un `Slug`.
+    /// Validates and builds a `Slug`.
     pub fn parse(raw: &str) -> Result<Self, DomainError> {
         let lower = raw.to_ascii_lowercase();
         if RESERVED_SLUGS.contains(&lower.as_str()) {
@@ -28,12 +28,12 @@ impl Slug {
         Ok(Self(raw.to_string()))
     }
 
-    /// Construit un `Slug` depuis une source déjà validée (ex: base SQLite).
+    /// Builds a `Slug` from an already validated source (e.g. SQLite database).
     pub fn from_trusted(raw: impl Into<String>) -> Self {
         Self(raw.into())
     }
 
-    /// Génère un slug aléatoire alphanumérique de 8 caractères.
+    /// Generates a random 8-character alphanumeric slug.
     pub fn generate_random() -> Self {
         use rand::Rng;
         const ALPHANUM: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -58,7 +58,7 @@ impl fmt::Display for Slug {
     }
 }
 
-/// Value Object représentant un chemin relatif sécurisé sous `/data` (sans `..`, sans `/` initial, sans nul).
+/// Value Object representing a secure relative path under `/data` (no `..`, no leading `/`, no null byte).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RelativeFilePath(String);
@@ -93,7 +93,7 @@ impl RelativeFilePath {
         Ok(Self(clean_segments.join("/")))
     }
 
-    /// Construit un `RelativeFilePath` depuis une source déjà validée (ex: base SQLite).
+    /// Builds a `RelativeFilePath` from an already validated source (e.g. SQLite database).
     pub fn from_trusted(raw: impl Into<String>) -> Self {
         Self(raw.into())
     }

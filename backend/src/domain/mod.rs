@@ -1,4 +1,4 @@
-//! Couche Domain (Pur Rust, zéro I/O).
+//! Domain layer (pure Rust, zero I/O).
 
 pub mod entities;
 pub mod errors;

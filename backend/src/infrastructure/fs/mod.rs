@@ -134,7 +134,7 @@ impl FileSystemPort for LocalFileSystem {
                     continue;
                 }
 
-                // Vérifier que les symlinks ne pointent pas hors de DATA_DIR
+                // Ensure symlinks do not point outside DATA_DIR
                 let entry_path = entry.path();
                 if !guard.is_within_root(&entry_path) {
                     continue;
@@ -405,7 +405,7 @@ impl ThumbnailPort for WebpThumbnailer {
     }
 }
 
-/// Génère un flux ZIP64 en mémoire constante (mode `Stored`, sans stockage temporaire sur disque).
+/// Generates a ZIP64 stream at constant memory (`Stored` mode, no temporary disk storage).
 pub fn stream_directory_zip(
     guard: PathGuard,
     dir_path: PathBuf,

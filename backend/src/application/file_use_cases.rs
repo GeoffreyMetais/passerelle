@@ -140,7 +140,7 @@ fn build_breadcrumbs(path: &RelativeFilePath) -> Vec<BreadcrumbItem> {
 
 fn sort_entries(entries: &mut [FileEntry], sort_by: SortBy, sort_order: SortOrder) {
     entries.sort_by(|a, b| {
-        // Les dossiers sont TOUJOURS groupés avant les fichiers.
+        // Directories are ALWAYS grouped before files.
         match (a.is_directory, b.is_directory) {
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,

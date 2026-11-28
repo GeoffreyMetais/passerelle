@@ -1,4 +1,4 @@
-//! Couche Application (Cas d'usage orchestrant les ports du domaine).
+//! Application layer (use cases orchestrating the domain ports).
 
 pub mod auth_use_cases;
 pub mod file_use_cases;

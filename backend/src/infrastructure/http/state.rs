@@ -24,7 +24,7 @@ pub struct AppState {
     pub unlock_limiter: Arc<RateLimiter>,
 }
 
-/// Extracteur d'authentification Bearer JWT pour les routes `/api/v1/*`.
+/// Bearer JWT authentication extractor for `/api/v1/*` routes.
 #[derive(Debug, Clone)]
 pub struct AdminAuth {
     pub session_id: Uuid,
@@ -59,7 +59,7 @@ impl FromRequestParts<AppState> for AdminAuth {
     }
 }
 
-/// Extrait l'IP client depuis `X-Forwarded-For` / `X-Real-IP` ou `Extensions` (`ConnectInfo<SocketAddr>`, absent en tests `oneshot`).
+/// Extracts the client IP from `X-Forwarded-For` / `X-Real-IP` or `Extensions` (`ConnectInfo<SocketAddr>`, absent in `oneshot` tests).
 pub fn extract_client_ip(
     headers: &HeaderMap,
     extensions: &axum::http::Extensions,
