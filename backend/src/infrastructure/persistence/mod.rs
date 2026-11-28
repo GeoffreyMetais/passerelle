@@ -347,8 +347,8 @@ impl ShareRepository for SqliteShareRepository {
         now: DateTime<Utc>,
     ) -> Result<bool, DomainError> {
         let now_str = fmt_dt(now);
-        // On utilise julianday() / datetime() ou comparaison RFC3339 UTC car fmt_dt produit du RFC3339 Z
-        // Pour éviter tout écart de format ISO avec offset, on compare via unixepoch() / julianday() en SQLite.
+        // Use julianday() / datetime() or RFC3339 UTC comparison because fmt_dt produces RFC3339 Z
+        // To avoid any ISO format drift with offsets, compare via unixepoch() / julianday() in SQLite.
         let res = sqlx::query(
             r#"
             UPDATE share_links

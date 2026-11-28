@@ -371,14 +371,14 @@ impl ShareUseCases {
             }
         }
 
-        // Vérifier que la cible existe toujours avant d'incrémenter le compteur
+        // Check that the target still exists before incrementing the counter
         let _meta = self.fs.get_metadata(&share.relative_path).await?;
 
-        // Si c'est une continuation de requête Range (offset > 0), on ne ré-incrémente pas le quota
+        // If this is a Range request continuation (offset > 0), do not increment the quota again
         if !is_range_continuation {
             let incremented = self.shares.increment_download_atomic(share.id, now).await?;
             if !incremented {
-                // Re-lire pour retourner l'erreur exacte (quota vs expiré vs révoqué)
+                // Re-read to return the exact error (quota vs expired vs revoked)
                 if let Some(fresh) = self.shares.find_by_id(share.id).await? {
                     fresh.verify_access(now)?;
                 }

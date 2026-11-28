@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-/// Limiteur de requêtes en mémoire (fenêtre glissante) par IP (ou fallback global si pas d'IP socket).
+/// In-memory rate limiter (sliding window) per IP (or global fallback when there is no socket IP).
 pub struct RateLimiter {
     max_requests: usize,
     window: Duration,

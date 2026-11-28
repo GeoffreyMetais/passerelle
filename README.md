@@ -1,76 +1,76 @@
 # Passerelle
 
-**Passerelle** est une solution auto-hébergée de partage sécurisé de fichiers et dossiers, conçue autour d'une architecture **lecture seule stricte** (`:ro`), d'un backend **Rust** haute performance et d'un client **Kotlin Multiplatform** (Application Android native + **Progressive Web App** `wasmJs` Material Design 3 Adaptive).
+**Passerelle** is a self-hosted secure file and folder sharing solution, built around a **strict read-only** (`:ro`) architecture, a high-performance **Rust** backend, and a **Kotlin Multiplatform** client (native Android app + **Progressive Web App** `wasmJs` Material Design 3 Adaptive).
 
 ---
 
-## Architecture : Domaine Unique en Sous-Dossiers (ou 2 Domaines / Racine)
+## Architecture: Single Domain in Subdirectories (or 2 Domains / Root)
 
-Passerelle sépare strictement l'interface d'administration (PWA) du serveur d'API et des liens publics, et peut être hébergé **au choix** sur un **domaine unique dans deux sous-dossiers configurables** (ex : `https://partage.exemple.fr/passerelle` et `https://partage.exemple.fr/passerelle-api`) ou à la racine `/` de deux sous-domaines dédiés :
+Passerelle strictly separates the admin interface (PWA) from the API server and the public links, and can be hosted **either** on a **single domain in two configurable subdirectories** (e.g. `https://partage.exemple.fr/passerelle` and `https://partage.exemple.fr/passerelle-api`) or at the `/` root of two dedicated subdomains:
 
 ```text
-                    ┌──────────────────────────────────────────┐
-                    │       Reverse-Proxy TLS (Hôte)           │
-                    │     Caddy / Traefik / Nginx              │
-                    └──────┬───────────────────────────┬───────┘
+                    ┌─────────────────────────────┐
+                    │    TLS Reverse Proxy (Host) │
+                    │     Caddy / Traefik / Nginx │
+                    └──────────────┬──────────────┘
                            │                           │
        https://partage.exemple.fr/passerelle   https://partage.exemple.fr/passerelle-api
-       (ou https://app.domaine.fr/)           (ou https://s.domaine.fr/)
+       (or https://app.domaine.fr/)            (or https://s.domaine.fr/)
                            │                           │
                            ▼                           ▼
-             ┌───────────────────────────┐   ┌────────────────────────────┐
-             │      passerelle-web       │   │       passerelle-api       │
-             │   Nginx 1.27 Alpine PWA   │   │   Backend Rust (Axum)      │
-             │                           │   │                            │
-             │ • Bundle Kotlin/Wasm      │   │ • API Admin /api/v1/*      │
-             │ • ./config.json dynamique │   │ • Pages publiques /{slug}  │
-             │ • Service Worker & icons  │   │ • Streaming Range & ZIP64  │
-             └───────────────────────────┘   └──────────┬──────────┬──────┘
+             ┌─────────────────────────┐   ┌─────────────────────────┐
+             │      passerelle-web     │   │      passerelle-api     │
+             │   Nginx 1.27 Alpine PWA │   │    Backend Rust (Axum)  │
+             │                         │   │                         │
+             │ • Kotlin/Wasm bundle    │   │ • Admin API /api/v1/*   │
+             │ • dynamic ./config.json │   │ • Public pages /{slug}  │
+             │ • Service Worker & icons│   │ • Range & ZIP64 stream  │
+             └─────────────────────────┘   └────────────┬────────────┘
                                                         │          │
-                                          lecture seule │          │ SQLite WAL
-                                                  (:ro) │          │ + miniatures WebP
+                                          read-only     │          │ SQLite WAL
+                                          (:ro)          │          │ + WebP thumbnails
                                                         ▼          ▼
                                                      /data    /var/lib/passerelle
 ```
 
-- **`/passerelle` (`passerelle-web`, configurable via `WEB_BASE_PATH`)** : héberge la PWA installable Kotlin/Wasm avec des chemins relatifs (`./manifest.webmanifest`, `./sw.js`, `./config.json`). Au démarrage du conteneur, `40-generate-config.sh` génère `config.json` (à partir de `API_BASE_URL`) et la configuration Nginx adaptée à `WEB_BASE_PATH`.
-- **`/passerelle-api` (`passerelle-api`, configurable via `API_BASE_PATH`)** : expose l'API REST sécurisée (`POST /api/v1/auth/login`, `/api/v1/files/*`, `/api/v1/shares/*`), les pages publiques légères `GET /{slug}` ainsi que les téléchargements directs `GET /d/{slug}` sous le préfixe configuré. La sonde Docker locale `GET /health` reste toujours disponible à la racine.
-- **Mode racine (`/`)** : laissez simplement `WEB_BASE_PATH=""` et `API_BASE_PATH=""` pour servir les deux services à la racine (ex. `https://app.domaine.fr` et `https://s.domaine.fr`).
+- **`/passerelle` (`passerelle-web`, configurable via `WEB_BASE_PATH`)**: hosts the installable Kotlin/Wasm PWA with relative paths (`./manifest.webmanifest`, `./sw.js`, `./config.json`). At container startup, `40-generate-config.sh` generates `config.json` (from `API_BASE_URL`) and the Nginx configuration adapted to `WEB_BASE_PATH`.
+- **`/passerelle-api` (`passerelle-api`, configurable via `API_BASE_PATH`)**: exposes the secured REST API (`POST /api/v1/auth/login`, `/api/v1/files/*`, `/api/v1/shares/*`), the lightweight public pages `GET /{slug}` and the direct downloads `GET /d/{slug}` under the configured prefix. The local Docker health probe `GET /health` always remains available at the root.
+- **Root mode (`/`)**: simply leave `WEB_BASE_PATH=""` and `API_BASE_PATH=""` to serve both services at the root (e.g. `https://app.domaine.fr` and `https://s.domaine.fr`).
 
 ---
 
-## Fonctionnalités Clés
+## Key Features
 
-- **Sécurité Lecture Seule (`:ro`)** : le répertoire `/data` est monté en lecture seule stricte. Aucun fichier n'est jamais créé, renommé ou supprimé sur votre NAS/stockage, et chaque chemin est validé canoniquement (`PathGuard` avec `canonicalize` + `starts_with`) pour empêcher tout *path traversal*.
-- **Streaming ZIP64 à la volée sans stockage temporaire** : les partages de dossiers sont diffusés directement en flux HTTP (`async_zip` en mode `Stored`) à mémoire constante, tout en ignorant les fichiers cachés NAS et en respectant la limite configurable `MAX_ZIP_SIZE_BYTES`.
-- **Reprise de téléchargement (`Range` / `206 Partial Content`)** : les fichiers individuels supportent les requêtes par plage d'octets sans double décompte de quota lors des reprises (`bytes=N-` avec `N > 0`).
-- **Contrôles d'accès complets sur les liens** :
-  - Slug personnalisé ou aléatoire court (8 caractères) avec protection des routes réservées (`api`, `d`, `health`, `assets`, `robots.txt`, `favicon.ico`).
-  - Date d'expiration UTC et quota maximal de téléchargements décrémenté atomiquement en SQLite.
-  - Mot de passe optionnel hashé **Argon2id**, déverrouillable via formulaire HTML (`POST /{slug}/unlock` avec cookie `HttpOnly; SameSite=Lax` scopé au sous-dossier), `?password=...` ou `Authorization: Basic` (compatible `curl`/`wget`).
-  - Révocation instantanée et génération de **QR Code SVG** vectoriel (`GET /api/v1/shares/{id}/qr`).
-- **Pages publiques ultra-légères** : HTML/CSS Material 3 rendu côté serveur via Askama (`< 20 Ko`), thème clair/sombre automatique et balises OpenGraph (`og:title`, `og:description`, `og:type`).
-- **Client Kotlin Multiplatform Material 3 Adaptive** :
-  - **PWA Web (`wasmJs`)** installable (`manifest.webmanifest`, icônes `192x192`, `512x512` & `maskable`, Service Worker avec cache App Shell scopé au sous-dossier et excluant `config.json`, `/api/*` et `/d/*`).
-  - **Android** natif avec Dynamic Color (Android 12+), Edge-to-Edge et Share Sheet système (`Intent.ACTION_SEND`).
-  - Mise en page adaptative (`NavigationSuiteScaffold`, panneau maître-détail sur grands écrans).
+- **Read-Only Security (`:ro`)**: the `/data` directory is mounted strictly read-only. No file is ever created, renamed, or deleted on your NAS/storage, and every path is canonically validated (`PathGuard` with `canonicalize` + `starts_with`) to prevent any *path traversal*.
+- **On-the-fly ZIP64 streaming with no temporary storage**: folder shares are streamed directly over HTTP (`async_zip` in `Stored` mode) at constant memory usage, while skipping hidden NAS files and respecting the configurable `MAX_ZIP_SIZE_BYTES` limit.
+- **Download resume (`Range` / `206 Partial Content`)**: individual files support byte-range requests without double-counting quota on resumes (`bytes=N-` with `N > 0`).
+- **Full access control on links**:
+  - Custom or short random slug (8 characters) with reserved-route protection (`api`, `d`, `health`, `assets`, `robots.txt`, `favicon.ico`).
+  - UTC expiration date and maximum download quota decremented atomically in SQLite.
+  - Optional **Argon2id**-hashed password, unlockable via HTML form (`POST /{slug}/unlock` with `HttpOnly; SameSite=Lax` cookie scoped to the subdirectory), `?password=...`, or `Authorization: Basic` (`curl`/`wget` compatible).
+  - Instant revocation and vector **SVG QR Code** generation (`GET /api/v1/shares/{id}/qr`).
+- **Ultra-light public pages**: Material 3 HTML/CSS rendered server-side via Askama (`< 20 KB`), automatic light/dark theme, and OpenGraph tags (`og:title`, `og:description`, `og:type`).
+- **Kotlin Multiplatform Material 3 Adaptive client**:
+  - **Web PWA (`wasmJs`)** installable (`manifest.webmanifest`, `192x192`, `512x512` & `maskable` icons, Service Worker with App Shell cache scoped to the subdirectory and excluding `config.json`, `/api/*` and `/d/*`).
+  - **Native Android** with Dynamic Color (Android 12+), Edge-to-Edge, and the system Share Sheet (`Intent.ACTION_SEND`).
+  - Adaptive layout (`NavigationSuiteScaffold`, master-detail pane on large screens).
 
 ---
 
-## Déploiement Rapide (Docker Compose)
+## Quick Deployment (Docker Compose)
 
-### 1. Préparer la configuration
+### 1. Prepare the configuration
 
 ```bash
 cp deploy/.env.example deploy/.env
 ```
 
-Éditez `deploy/.env` avec vos valeurs. Exemple sur un domaine unique (`partage.exemple.fr`) :
+Edit `deploy/.env` with your values. Example on a single domain (`partage.exemple.fr`):
 
 ```dotenv
 API_PORT=8080
 WEB_PORT=3000
-HOST_DATA_DIR=/chemin/absolu/vers/vos/fichiers
+HOST_DATA_DIR=/absolute/path/to/your/files
 
 APP_SCHEME=https
 APP_DOMAIN=partage.exemple.fr
@@ -80,12 +80,12 @@ PUBLIC_BASE_URL=${APP_SCHEME}://${APP_DOMAIN}${API_BASE_PATH}
 ALLOWED_ORIGINS=${APP_SCHEME}://${APP_DOMAIN}
 
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=un-mot-de-passe-tres-robuste
-JWT_SECRET=generez-avec-openssl-rand-hex-32
+ADMIN_PASSWORD=a-very-strong-password
+JWT_SECRET=generate-with-openssl-rand-hex-32
 ```
 
 > [!TIP]
-> Pour un déploiement à la racine `/` sur deux domaines distincts (`https://app.domaine.fr` et `https://s.domaine.fr`), configurez :
+> For a root `/` deployment on two distinct domains (`https://app.domaine.fr` and `https://s.domaine.fr`), configure:
 > ```dotenv
 > WEB_BASE_PATH=
 > API_BASE_PATH=
@@ -94,15 +94,18 @@ JWT_SECRET=generez-avec-openssl-rand-hex-32
 > ```
 
 > [!IMPORTANT]
-> `JWT_SECRET` doit contenir au minimum **16 caractères** (utilisez par exemple `openssl rand -hex 32`), et `PUBLIC_BASE_URL` / `ALLOWED_ORIGINS` ne doivent pas comporter de slash final.
+> `JWT_SECRET` must contain at least **16 characters** (for example use `openssl rand -hex 32`), and `PUBLIC_BASE_URL` / `ALLOWED_ORIGINS` must not have a trailing slash.
 
-### 2. Construire et démarrer les conteneurs
+> [!TIP]
+> To change the administrator password once the backend is deployed, see [docs/ADMIN_PASSWORD.md](docs/ADMIN_PASSWORD.md).
+
+### 2. Build and start the containers
 
 ```bash
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 ```
 
-Vérifier l'état de santé des deux services :
+Check the health of both services:
 
 ```bash
 docker compose -f deploy/docker-compose.yml ps
@@ -114,9 +117,9 @@ curl -fsS http://127.0.0.1:3000/passerelle/config.json
 
 ---
 
-## Configuration du Reverse-Proxy (TLS)
+## Reverse-Proxy Configuration (TLS)
 
-Les extraits ci-dessous routent `https://partage.exemple.fr/passerelle` vers `127.0.0.1:${WEB_PORT}` (`3000`) et `https://partage.exemple.fr/passerelle-api` vers `127.0.0.1:${API_PORT}` (`8080`) sans réécriture de chemin (les deux services gèrent nativement leur sous-dossier respectif).
+The snippets below route `https://partage.exemple.fr/passerelle` to `127.0.0.1:${WEB_PORT}` (`3000`) and `https://partage.exemple.fr/passerelle-api` to `127.0.0.1:${API_PORT}` (`8080`) without path rewriting (both services natively handle their respective subdirectory).
 
 ### Option A — Caddy (`Caddyfile`)
 
@@ -136,14 +139,14 @@ partage.exemple.fr {
 }
 ```
 
-### Option B — Nginx (Hôte)
+### Option B — Nginx (Host)
 
 ```nginx
 server {
     listen 443 ssl http2;
     server_name partage.exemple.fr;
 
-    # Certificats TLS gérés par Certbot / ACME
+    # TLS certificates managed by Certbot / ACME
     location = /passerelle {
         return 301 /passerelle/;
     }
@@ -157,7 +160,7 @@ server {
     }
 
     location /passerelle-api/ {
-        # Désactiver le buffering pour le streaming ZIP64 et gros fichiers
+        # Disable buffering for ZIP64 streaming and large files
         proxy_buffering off;
         proxy_request_buffering off;
 
@@ -170,21 +173,21 @@ server {
 }
 ```
 
-### Option C — Traefik (Labels Docker)
+### Option C — Traefik (Docker Labels)
 
-Ajoutez les labels Traefik sur un même routeur HTTPS (`Host(\`partage.exemple.fr\`)`) :
-- Sur `passerelle-web` (`port 80`) : `traefik.http.routers.passerelle-web.rule=Host(\`partage.exemple.fr\`) && PathPrefix(\`/passerelle\`)`
-- Sur `passerelle-api` (`port 8080`) : `traefik.http.routers.passerelle-api.rule=Host(\`partage.exemple.fr\`) && PathPrefix(\`/passerelle-api\`)`
+Add the Traefik labels on a single HTTPS router (`Host(\`partage.exemple.fr\`)`):
+- On `passerelle-web` (`port 80`): `traefik.http.routers.passerelle-web.rule=Host(\`partage.exemple.fr\`) && PathPrefix(\`/passerelle\`)`
+- On `passerelle-api` (`port 8080`): `traefik.http.routers.passerelle-api.rule=Host(\`partage.exemple.fr\`) && PathPrefix(\`/passerelle-api\`)`
 
-*(En mode racine avec deux domaines distincts, utilisez `Host(\`app.domaine.fr\`)` sur `passerelle-web` et `Host(\`s.domaine.fr\`)` sur `passerelle-api`.)*
+*(In root mode with two distinct domains, use `Host(\`app.domaine.fr\`)` on `passerelle-web` and `Host(\`s.domaine.fr\`)` on `passerelle-api`.)*
 
 ---
 
-## Développement Local
+## Local Development
 
-### Backend Rust (`backend/`)
+### Rust Backend (`backend/`)
 
-Prérequis : Rust `>= 1.85` (édition 2024).
+Prerequisites: Rust `>= 1.85` (edition 2024).
 
 ```bash
 cd backend
@@ -192,7 +195,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 
-# Lancer le serveur en local
+# Run the server locally
 mkdir -p /tmp/passerelle-data /tmp/passerelle-state
 BIND_ADDR=127.0.0.1:8080 \
 DATA_DIR=/tmp/passerelle-data \
@@ -205,9 +208,9 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080 \
 cargo run
 ```
 
-### Client KMP Android & PWA (`client/`)
+### KMP Android & PWA Client (`client/`)
 
-Prérequis : JDK 21 et Android SDK (`platforms;android-35`).
+Prerequisites: JDK 21 and Android SDK (`platforms;android-35`).
 
 ```bash
 cd client
@@ -216,9 +219,9 @@ cd client
 ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon
 ```
 
-Le bundle PWA de production est généré dans `client/composeApp/build/dist/wasmJs/productionExecutable/`.
+The production PWA bundle is generated in `client/composeApp/build/dist/wasmJs/productionExecutable/`.
 
-### Tests du script d'entrypoint Nginx (`deploy/`)
+### Tests for the Nginx entrypoint script (`deploy/`)
 
 ```bash
 ./deploy/tests/test_generate_config.sh
@@ -226,14 +229,14 @@ Le bundle PWA de production est généré dans `client/composeApp/build/dist/was
 
 ---
 
-## Architecture & Ingénierie
+## Architecture & Engineering
 
-Passerelle applique strictement la **Clean Architecture** et le **TDD (Red → Green → Refactor)** définis dans [AGENTS.md](AGENTS.md) ainsi que le contrat canonique décrit dans [docs/API_CONTRACT.md](docs/API_CONTRACT.md) :
+Passerelle strictly applies the **Clean Architecture** and **TDD (Red → Green → Refactor)** defined in [AGENTS.md](AGENTS.md) as well as the canonical contract described in [docs/API_CONTRACT.md](docs/API_CONTRACT.md):
 
-- **Backend (`backend/`)** :
-  - `src/domain/` : entités, Value Objects (`Slug`, `RelativeFilePath`), erreurs typées `thiserror` et ports abstraits (zéro I/O).
-  - `src/application/` : cas d'usage (`AuthUseCases`, `FileUseCases`, `ShareUseCases`) testables en mémoire.
-  - `src/infrastructure/` : SQLite (`sqlx`), garde-fou disque lecture seule (`PathGuard`), streaming ZIP64 (`async_zip`), miniatures WebP, sécurité (`argon2`, `jsonwebtoken`), routeur `axum` & templates `askama`.
-- **Client KMP (`client/`)** :
+- **Backend (`backend/`)**:
+  - `src/domain/`: entities, Value Objects (`Slug`, `RelativeFilePath`), typed `thiserror` errors, and abstract ports (zero I/O).
+  - `src/application/`: use cases (`AuthUseCases`, `FileUseCases`, `ShareUseCases`) testable in memory.
+  - `src/infrastructure/`: SQLite (`sqlx`), read-only disk guard (`PathGuard`), ZIP64 streaming (`async_zip`), WebP thumbnails, security (`argon2`, `jsonwebtoken`), `axum` router & `askama` templates.
+- **KMP Client (`client/`)**:
   - `:core:domain` ← `:core:data` / `:core:platform` / `:core:designsystem` ← `:feature:auth`, `:feature:files`, `:feature:shares` ← `:composeApp`.
-  - Flux unidirectionnel strict MVI (`StateFlow<UiState>` + `SharedFlow<UiEvent>`).
+  - Strict unidirectional MVI flow (`StateFlow<UiState>` + `SharedFlow<UiEvent>`).

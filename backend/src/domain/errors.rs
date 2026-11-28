@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// Erreurs métier pures de la couche Domain.
+/// Pure business errors of the Domain layer.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum DomainError {
     #[error("Identifiants administrateur invalides.")]
